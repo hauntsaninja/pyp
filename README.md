@@ -119,6 +119,22 @@ if (output is not None):
 However, Pyed Piper appears to be unmaintained, Python 2 only, and further away from Python syntax
 than `pyp` aims to be.
 
+### [Pyped](https://github.com/ksamuel/Pyped)
+
+I discovered Pyped while making this project! It's actually very similar, probably similar enough
+that I wouldn't have written this had I known. However, Pyped doesn't do the AST introspection
+and manipulation that we do. This means:
+- It's less magical! It relies on you to pass in flags to tell it what to do.
+- It doesn't provide smart printing of iterables and dicts.
+- It hardcodes a list of imports and installs some libraries on your system. This project's
+automatic import will work for any library you use.
+- It doesn't have anything like `--script`.
+
+However,
+- It has some conveniences, like regex splitting of input, that you'd have to do for yourself here.
+- It supports Python 2 (if that's still something you need).
+- It's been around for much longer.
+
 ### [xonsh](https://xon.sh/)
 
 `xonsh` is a shell whose language is a superset of Python; this is more ambitious and pretty
