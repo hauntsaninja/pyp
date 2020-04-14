@@ -1,4 +1,6 @@
+import ast
 import subprocess
+import sys
 from typing import Optional
 
 
@@ -74,6 +76,7 @@ def test_explain():
         "'d[user].append(pid)' "
         """-a 'del d["root"]' -a 'd'"""
     )
+    explain_output = run_cmd(command).decode("utf-8")
     script = r"""
 from collections import defaultdict
 from pyp import pypprint
@@ -85,8 +88,13 @@ for x in sys.stdin:
     d[user].append(pid)
 del d['root']
 output = d
-if (output is not None):
+if output is not None:
     pypprint(output)
 
 """
-    assert run_cmd(command).decode("utf-8") == script
+    if sys.version_info < (3, 9):
+        # astunparse seems to parenthesise things slightly differently, so filter through ast to
+        # hackily ensure that the scripts are the same.
+        assert ast.dump(ast.parse(explain_output)) == ast.dump(ast.parse(script))
+    else:
+        assert explain_output == script
