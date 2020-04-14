@@ -6,6 +6,9 @@ TODO: put this on PyPI
 
 # Examples
 
+This section will walk you through the details of using `pyp`, and hopefully replace your needs
+for many common shell utilities. For a cheatsheet / tldr, run `pyp --help`
+
 `pyp` can easily be used to apply Python code to each line in the input. Just use one of the magic
 variables `x`, `l`, `s` or `line` to refer to the current line.
 
