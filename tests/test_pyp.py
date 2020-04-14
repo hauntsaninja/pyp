@@ -89,7 +89,6 @@ for x in sys.stdin:
 del d['root']
 if d is not None:
     pypprint(d)
-
 """
     if sys.version_info < (3, 9):
         # astunparse seems to parenthesise things slightly differently, so filter through ast to
