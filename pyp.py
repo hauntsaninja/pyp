@@ -77,6 +77,10 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
     return defined, undefined
 
 
+class PypError(Exception):
+    pass
+
+
 class PypTransform:
     """PypTransform is responsible for transforming all input code.
 
@@ -161,7 +165,7 @@ class PypTransform:
         # before we do them.
         success = inner(self.after_tree, True) or inner(self.tree)
         if not success:
-            raise RuntimeError(
+            raise PypError(
                 "Code doesn't generate any output; either explicitly print something, end with "
                 "an expression that pyp can print, or explicitly end with `pass`."
             )
@@ -199,11 +203,11 @@ class PypTransform:
             return
 
         if (possible_vars["loop"] or possible_vars["index"]) and possible_vars["input"]:
-            raise RuntimeError("Candidates found for both loop variable and input variable")
+            raise PypError("Candidates found for both loop variable and input variable")
 
         for typ, names in possible_vars.items():
             if len(names) > 1:
-                raise RuntimeError(f"Multiple candidates for {typ} variable")
+                raise PypError(f"Multiple candidates for {typ} variable")
 
         if possible_vars["loop"] or possible_vars["index"]:
             idx_var = possible_vars["index"].pop() if possible_vars["index"] else None
@@ -325,7 +329,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    tree = PypTransform("\n".join(args.before), "\n".join(args.code), "\n".join(args.after)).build()
+    try:
+        tree = PypTransform(
+            "\n".join(args.before), "\n".join(args.code), "\n".join(args.after)
+        ).build()
+    except PypError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
 
     if args.explain:
         print(unparse(tree))
