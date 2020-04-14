@@ -4,6 +4,8 @@ import subprocess
 import sys
 from typing import Optional
 
+from pytest import raises
+
 
 def run_cmd(cmd: str, input: Optional[str] = None) -> None:
     if isinstance(input, str):
@@ -115,3 +117,25 @@ if d is not None:
         assert ast.dump(ast.parse(explain_output)) == ast.dump(ast.parse(script))
     else:
         assert explain_output == script
+
+
+def test_failures():
+    with raises(subprocess.CalledProcessError):
+        # No possible output
+        run_cmd("pyp 'x = 1'")
+    with raises(subprocess.CalledProcessError):
+        # Unclear which transformation
+        run_cmd("pyp 'print(x); print(len(lines))'")
+    with raises(subprocess.CalledProcessError):
+        # Multiple candidates for loop variable
+        run_cmd("pyp 'print(x); print(s)'")
+
+
+def test_edge_cases():
+    """Tests that hit various edge cases and/or improve coverage."""
+    assert run_cmd("pyp pass") == b""
+    assert run_cmd("pyp '1; pass'") == b""
+    assert run_cmd("pyp 'print(1)'") == b"1\n"
+    assert run_cmd("pyp 'output = 0; 1'") == b"1\n"
+    assert run_cmd("pyp 'pypprint(1); pypprint(1, 2)'") == b"1\n1 2\n"
+    assert run_cmd("pyp i", input="a\nb") == b"0\n1\n"
