@@ -4,8 +4,8 @@ with open("README.md", "r") as f:
     long_description = f.read()
 
 setup(
-    name="pyp",
-    version="0.1",
+    name="pypyp",
+    version="0.1.1",
     author="Shantanu Jain",
     author_email="hauntsaninja@gmail.com",
     description="Easily run Python at the shell!",
