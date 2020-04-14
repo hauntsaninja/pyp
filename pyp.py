@@ -1,7 +1,7 @@
 import argparse
 import ast
 import sys
-from typing import Any, Optional, Set, Tuple
+from typing import Any, List, Optional, Set, Tuple
 
 __all__ = ["pypprint"]
 
@@ -298,7 +298,22 @@ exec(compile(tree, filename="<ast>", mode="exec"), {{}})
 """
 
 
-def main() -> None:
+def run_pyp(args: argparse.Namespace) -> None:
+    try:
+        tree = PypTransform(
+            "\n".join(args.before), "\n".join(args.code), "\n".join(args.after)
+        ).build()
+    except PypError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.explain:
+        print(unparse(tree))
+    else:
+        exec(compile(tree, filename="<ast>", mode="exec"), {})
+
+
+def parse_options(args: List[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="pyp",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -327,20 +342,11 @@ def main() -> None:
     parser.add_argument(
         "-a", "--after", action="append", default=[], metavar="CODE", help="Python to run after"
     )
-    args = parser.parse_args()
+    return parser.parse_args(args)
 
-    try:
-        tree = PypTransform(
-            "\n".join(args.before), "\n".join(args.code), "\n".join(args.after)
-        ).build()
-    except PypError as e:
-        print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
 
-    if args.explain:
-        print(unparse(tree))
-    else:
-        exec(compile(tree, filename="<ast>", mode="exec"), {})
+def main() -> None:
+    run_pyp(parse_options(sys.argv[1:]))
 
 
 if __name__ == "__main__":
