@@ -1,9 +1,29 @@
+dist: bionic
 language: python
-python:
-  - "3.6"
-  - "3.8"
-  - "3.9-dev"
 install:
-  - pip install tox-travis
-  - pip install .
-script: tox
+  - pip install tox
+jobs:
+  include:
+  - name: lint
+    python: 3.6
+    script: tox -e lint
+  - name: mypy
+    python: 3.6
+    script: tox -e mypy
+  - name: py36
+    python: 3.6
+    script: tox -e py36
+  - name: py38
+    python: 3.8
+    script: tox -e py38
+  - name: py39
+    python: 3.9-dev
+    script: tox -e py39
+  - name: coverage
+    python: 3.8
+    install:
+      - pip install tox
+      - pip install coveralls
+    script:
+      - tox -e coverage
+      - coveralls
