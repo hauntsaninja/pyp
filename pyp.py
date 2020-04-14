@@ -291,7 +291,21 @@ exec(compile(tree, filename="<ast>", mode="exec"), {{}})
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="pyp", description="Easily run Python at the shell!")
+    parser = argparse.ArgumentParser(
+        prog="pyp",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "Easily run Python at the shell!\n\n"
+            "For help and examples, see https://github.com/hauntsaninja/pyp\n\n"
+            "Cheatsheet:\n"
+            "- Use `line`, `x`, `l`, or `s` for a line in the input. Use `i`, `idx` or `index` "
+            "for the index\n"
+            "- Use `lines` to get a list of rstripped lines\n"
+            "- Use `stdin` to get sys.stdin\n"
+            "- Use print explicitly if you don't like when or how or what it's printing\n"
+            "- If the magic is ever too mysterious, use --explain"
+        ),
+    )
     parser.add_argument("code", nargs="+", help="Python you want to run")
     parser.add_argument(
         "--explain",

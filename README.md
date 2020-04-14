@@ -16,7 +16,7 @@ ps x | pyp 'line.split()[4]'
 ```
 
 `pyp` can be used to easily apply Python code to the entire input as well. Use the magic variable
-`lines` for a list of stripped lines or `stdin` for `sys.stdin`.
+`lines` for a list of rstripped lines or `stdin` for `sys.stdin`.
 
 ```
 # pyp like wc -c
