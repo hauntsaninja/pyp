@@ -1,10 +1,18 @@
-# Installation
+# pyp
+
+[![Build Status](https://travis-ci.org/hauntsaninja/pyp.svg?branch=master)](https://travis-ci.org/hauntsaninja/pyp)
+[![Coverage Status](https://coveralls.io/repos/github/hauntsaninja/pyp/badge.svg?branch=master)](https://coveralls.io/github/hauntsaninja/pyp?branch=master)
+[![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
+
+Easily run Python at the shell!
+
+## Installation
 
 TODO: put this on PyPI
 
 `pip install git+https://github.com/hauntsaninja/pyp@master`
 
-# Examples
+## Examples
 
 This section will walk you through the details of using `pyp`, and hopefully replace your needs
 for many common shell utilities. For a cheatsheet / tldr, run `pyp --help`
@@ -113,7 +121,7 @@ if d is not None:
     pypprint(d)
 ```
 
-# Related Projects
+## Related Projects
 
 ### [Pyed Piper](https://code.google.com/archive/p/pyp/) aka  Python Power at the Prompt
 
