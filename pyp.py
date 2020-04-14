@@ -133,11 +133,15 @@ class PypTransform:
                 del tree.body[-1]
                 return True
 
-            output = self.get_valid_name("output")
-            self.define(output)
-            tree.body[-1] = ast.Assign(
-                targets=[ast.Name(id=output, ctx=ast.Store())], value=tree.body[-1].value
-            )
+            if isinstance(tree.body[-1].value, ast.Name):
+                output = tree.body[-1].value.id
+                tree.body.pop()
+            else:
+                output = self.get_valid_name("output")
+                self.define(output)
+                tree.body[-1] = ast.Assign(
+                    targets=[ast.Name(id=output, ctx=ast.Store())], value=tree.body[-1].value
+                )
 
             print_fn = "print"
             if use_pypprint:

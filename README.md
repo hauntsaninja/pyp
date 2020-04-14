@@ -109,9 +109,8 @@ for x in sys.stdin:
     (user, pid, *_) = x.split()
     d[user].append(pid)
 del d['root']
-output = d
-if (output is not None):
-    pypprint(output)
+if d is not None:
+    pypprint(d)
 ```
 
 # Related Projects
