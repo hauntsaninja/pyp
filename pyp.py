@@ -1,16 +1,17 @@
 import argparse
 import ast
+import inspect
 import sys
 from typing import Any, List, Optional, Set, Tuple
 
 __all__ = ["pypprint"]
 
 
-def pypprint(*args: Any, **kwargs: Any) -> None:
+def pypprint(*args, **kwargs):  # type: ignore
     """Replacement for ``print`` that special-cases dicts and iterables.
 
     - Dictionaries are printed one line per key-value pair, with key and value colon-separated.
-    - Iterables are printed one line per item
+    - Iterables (excluding strings) are printed one line per item
     - Everything else is delegated to ``print``
 
     """
@@ -92,10 +93,12 @@ class PypTransform:
 
     """
 
-    def __init__(self, before: str, code: str, after: str) -> None:
-        self.before_tree = ast.parse(before)
-        self.tree = ast.parse(code)
-        self.after_tree = ast.parse(after)
+    def __init__(
+        self, before: List[str], code: List[str], after: List[str], define_pypprint: bool
+    ) -> None:
+        self.before_tree = ast.parse("\n".join(before))
+        self.tree = ast.parse("\n".join(code))
+        self.after_tree = ast.parse("\n".join(after))
 
         self.defined: Set[str] = set()
         self.undefined: Set[str] = set()
@@ -103,6 +106,8 @@ class PypTransform:
             _def, _undef = find_names(t)
             self.undefined |= _undef - self.defined
             self.defined |= _def
+
+        self.define_pypprint = define_pypprint
 
         # The print statement ``build_output`` will add, if it determines it needs to.
         self.implicit_print: Optional[ast.Call] = None
@@ -243,7 +248,15 @@ class PypTransform:
 
     def build_missing_imports(self) -> None:
         """Modifies the AST to import undefined names."""
-        missing_names = sorted(self.undefined - set(dir(__import__("builtins"))))
+        missing_names = self.undefined - set(dir(__import__("builtins")))
+
+        if self.define_pypprint and "pypprint" in missing_names:
+            # Add the definition of pypprint to the AST
+            self.before_tree.body = (
+                ast.parse(inspect.getsource(pypprint)).body + self.before_tree.body
+            )
+            missing_names.remove("pypprint")
+
         if not missing_names:
             return
 
@@ -262,7 +275,7 @@ class PypTransform:
             return ast.parse(f"import {name}").body[0]
 
         self.before_tree.body = [
-            get_import_for_name(name) for name in missing_names
+            get_import_for_name(name) for name in sorted(missing_names)
         ] + self.before_tree.body
 
     def build(self) -> ast.Module:
@@ -300,9 +313,7 @@ exec(compile(tree, filename="<ast>", mode="exec"), {{}})
 
 def run_pyp(args: argparse.Namespace) -> None:
     try:
-        tree = PypTransform(
-            "\n".join(args.before), "\n".join(args.code), "\n".join(args.after)
-        ).build()
+        tree = PypTransform(args.before, args.code, args.after, args.define_pypprint).build()
     except PypError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         sys.exit(1)
@@ -325,7 +336,7 @@ def parse_options(args: List[str]) -> argparse.Namespace:
             "for the index\n"
             "- Use `lines` to get a list of rstripped lines\n"
             "- Use `stdin` to get sys.stdin\n"
-            "- Use print explicitly if you don't like when or how or what it's printing\n"
+            "- Use print explicitly if you don't like when or how or what pyp's printing\n"
             "- If the magic is ever too mysterious, use --explain"
         ),
     )
@@ -341,6 +352,11 @@ def parse_options(args: List[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "-a", "--after", action="append", default=[], metavar="CODE", help="Python to run after"
+    )
+    parser.add_argument(
+        "--define-pypprint",
+        action="store_true",
+        help="Defines pypprint, if used, instead of importing it from pyp.",
     )
     return parser.parse_args(args)
 

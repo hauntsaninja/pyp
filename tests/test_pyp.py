@@ -139,3 +139,4 @@ def test_edge_cases():
     assert run_cmd("pyp 'output = 0; 1'") == b"1\n"
     assert run_cmd("pyp 'pypprint(1); pypprint(1, 2)'") == b"1\n1 2\n"
     assert run_cmd("pyp i", input="a\nb") == b"0\n1\n"
+    assert run_cmd("pyp --define-pypprint lines", input="a\nb") == b"a\nb\n"
