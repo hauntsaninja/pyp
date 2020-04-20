@@ -4,11 +4,11 @@
 [![Coverage Status](https://coveralls.io/repos/github/hauntsaninja/pyp/badge.svg?branch=master)](https://coveralls.io/github/hauntsaninja/pyp?branch=master)
 [![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 
-Easily run Python at the shell!
+Easily run Python at the shell! Magical, but never mysterious.
 
 ## Installation
 
-Run `pip install pypyp`.
+Run `pip install pypyp` <sup>(note the extra "yp"!)</sup>
 
 `pyp` requires Python 3.6 or above.
 
@@ -68,7 +68,7 @@ cat setup.py | pyp 'f"{idx+1: >3} {x}"'
 ```
 
 Note so far you haven't had to call `print`! By default, `pyp` will print the last expression in
-your code -- except if it evaluates to `None`. And you can always explicitly call `print` yourself,
+your code — except if it evaluates to `None`. And you can always explicitly call `print` yourself,
 in which case `pyp` will stay out of your way.
 
 ```
@@ -93,8 +93,8 @@ ls | pyp 'print(f"Sorting {len(lines)} lines"); pypprint(sorted(lines))'
 ls | pyp 'sorted(set(lines))'
 ```
 
-`pyp` lets you run snippets of Python before and after. Note if you run into trouble with
-semicolons and want a new line, you can just pass another string to `pyp`.
+`pyp` lets you run snippets of Python before and after processing input. Note if you run into
+trouble with semicolons and want a new line, you can just pass another string to `pyp`.
 You can also always pipe `pyp` to `pyp`!
 
 ```
@@ -134,15 +134,16 @@ than `pyp` aims to be.
 I discovered Pyped while making this project! It's actually very similar, probably similar enough
 that I wouldn't have written this had I known. However, Pyped doesn't do the AST introspection
 and manipulation that we do. This means:
-- It's less magical! It relies on you to pass in flags to tell it what to do.
-- It doesn't provide smart printing of iterables and dicts.
+- It's less magical! It relies on you to pass in flags to tell it what to do, when intention can
+be inferred from the input.
+- It doesn't provide easy automatic printing, or smart printing of iterables and dicts.
 - It hardcodes a list of imports and installs some libraries on your system. This project's
 automatic import will work for any library you use.
-- It doesn't have anything like `--script`.
+- It doesn't have anything like `--explain`/`--script`.
 
 However,
 - It has some conveniences, like regex splitting of input, that you'd have to do for yourself here.
-- It supports Python 2 (if that's still something you need).
+- It supports Python 2 and early versions of Python 3.
 - It's been around for much longer.
 
 ### [xonsh](https://xon.sh/)

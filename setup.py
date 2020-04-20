@@ -8,7 +8,7 @@ setup(
     version="0.1.1",
     author="Shantanu Jain",
     author_email="hauntsaninja@gmail.com",
-    description="Easily run Python at the shell!",
+    description="Easily run Python at the shell! Magical, but never mysterious.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/hauntsaninja/pyp",

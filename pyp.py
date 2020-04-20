@@ -348,10 +348,20 @@ def parse_options(args: List[str]) -> argparse.Namespace:
         help="Prints the Python that would get run, instead of running it",
     )
     parser.add_argument(
-        "-b", "--before", action="append", default=[], metavar="CODE", help="Python to run before"
+        "-b",
+        "--before",
+        action="append",
+        default=[],
+        metavar="CODE",
+        help="Python to run before processing input",
     )
     parser.add_argument(
-        "-a", "--after", action="append", default=[], metavar="CODE", help="Python to run after"
+        "-a",
+        "--after",
+        action="append",
+        default=[],
+        metavar="CODE",
+        help="Python to run after processing input",
     )
     parser.add_argument(
         "--define-pypprint",
