@@ -121,7 +121,13 @@ if d is not None:
     pypprint(d)
 ```
 
-## Related Projects
+## How it works
+
+`pyp` will statically analyse the input code to detect unused variables. Based on what it finds,
+it will proceed to transform the AST of the input code as needed. We then compile and execute the
+result, or if using `--explain`, unparse the AST back to source code.
+
+## Related projects
 
 ### [Pyed Piper](https://code.google.com/archive/p/pyp/) aka  Python Power at the Prompt
 
