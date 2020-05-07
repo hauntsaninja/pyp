@@ -111,6 +111,7 @@ del d['root']
 if d is not None:
     pypprint(d)
 """
+    script = script.lstrip("\n")
     if sys.version_info < (3, 9):
         # astunparse seems to parenthesise things slightly differently, so filter through ast to
         # hackily ensure that the scripts are the same.
