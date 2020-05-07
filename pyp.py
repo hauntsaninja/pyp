@@ -88,7 +88,7 @@ class PypTransform:
     A lot of pyp's magic comes from it making decisions based on defined and undefined names in the
     input. This class helps keep track of that state as things change based on transformations. In
     general, the logic in here is very sensitive to reordering; there are various implicit
-    assumptions about what transformations have happened and what things have been defined. But
+    assumptions about what transformations have happened and what names have been defined. But
     the code is pretty small and the tests are good, so you should be okay!
 
     """
@@ -165,9 +165,9 @@ class PypTransform:
 
         # First attempt to add a print to self.after_tree, then to self.tree
         # We use pypprint in self.after_tree and print in self.tree, although the latter is
-        # subject to change later onif we call use_pypprint_for_implicit_print. This logic could be
-        # a little simpler if we refactored so that we know what transformations we will do before
-        # before we do them.
+        # subject to change later on if we call ``use_pypprint_for_implicit_print``. This logic
+        # could be a little simpler if we refactored so that we know what transformations we will
+        # do before we do them.
         success = inner(self.after_tree, True) or inner(self.tree)
         if not success:
             raise PypError(
@@ -215,6 +215,7 @@ class PypTransform:
                 raise PypError(f"Multiple candidates for {typ} variable")
 
         if possible_vars["loop"] or possible_vars["index"]:
+            # We'll loop over stdin and define loop / index variables
             idx_var = possible_vars["index"].pop() if possible_vars["index"] else None
             loop_var = possible_vars["loop"].pop() if possible_vars["loop"] else None
 
@@ -235,6 +236,7 @@ class PypTransform:
             loop.body.extend(self.tree.body)
             self.tree.body = [loop]
         else:
+            # We'll read from stdin and define the necessary input variable
             input_var = possible_vars["input"].pop()
             self.define(input_var)
 
