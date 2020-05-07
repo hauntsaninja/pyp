@@ -1,6 +1,7 @@
 import ast
 import sys
 
+import pytest
 from pyp import find_names
 
 
@@ -28,3 +29,8 @@ def test_comprehensions():
     assert ({"x"}, {"x"}) == find_names(ast.parse("(x for x in x)"))
     assert ({"x", "xx"}, {"xxx"}) == find_names(ast.parse("(x for xx in xxx for x in xx)"))
     assert ({"x", "xx"}, {"xx", "xxx"}) == find_names(ast.parse("(x for x in xx for xx in xxx)"))
+
+
+@pytest.mark.xfail(reason="do not currently support deletes")
+def test_del():
+    assert ({"x"}, {"x"}) == find_names(ast.parse("x = 3; del x; x"))
