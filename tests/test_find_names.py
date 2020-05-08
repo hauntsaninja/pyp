@@ -31,6 +31,20 @@ def test_comprehensions():
     assert ({"x", "xx"}, {"xx", "xxx"}) == find_names(ast.parse("(x for x in xx for xx in xxx)"))
 
 
+def test_args():
+    assert ({"f"}, {"x"}) == find_names(ast.parse("f = lambda: x"))
+    assert ({"f", "x"}, set()) == find_names(ast.parse("f = lambda x: x"))
+    assert ({"f", "x"}, {"y"}) == find_names(ast.parse("f = lambda x: y"))
+    assert ({"a", "b", "c", "x", "y", "z"}, set()) == find_names(
+        ast.parse("def f(x, y = 0, *z, a, b = 0, **c): ...")
+    )
+
+
+@pytest.mark.xfail(reason="do not currently support scopes")
+def test_args_bad():
+    assert ({"f", "x"}, {"x"}) == find_names(ast.parse("f = lambda x: x; x"))
+
+
 @pytest.mark.xfail(reason="do not currently support deletes")
 def test_del():
     assert ({"x"}, {"x"}) == find_names(ast.parse("x = 3; del x; x"))

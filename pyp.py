@@ -34,11 +34,12 @@ def pypprint(*args, **kwargs):  # type: ignore
 def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
     """Returns a tuple of defined and undefined names in the given AST.
 
-    A defined name is any name that is stored to.
-    An undefined name is any name that is loaded before it is stored.
+    A defined name is any name that is stored to (or is a function argument).
+    An undefined name is any name that is loaded before it is defined.
 
-    Note that we ignore deletes and scopes (because they're rare for this use case) and that
-    builtins will appear in undefined names.
+    Note that we ignore deletes and scopes. Our notion of definition is very simplistic; once
+    something is defined, it's never undefined. This is an okay approximation for our use case.
+    Note used builtins will appear in undefined names.
 
     """
     undefined = set()
@@ -59,19 +60,23 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
                     self.visit(value)
 
         def visit_Name(self, node: ast.Name) -> None:
-            nonlocal defined, undefined
             if isinstance(node.ctx, ast.Load):
                 if node.id not in defined:
                     undefined.add(node.id)
             elif isinstance(node.ctx, ast.Store):
                 defined.add(node.id)
-            # Ignore deletes
+            # Ignore deletes, see docstring
             self.generic_visit(node)
 
         def visit_AugAssign(self, node: ast.AugAssign) -> None:
             if isinstance(node.target, ast.Name):
                 if node.target.id not in defined:
                     undefined.add(node.target.id)
+            self.generic_visit(node)
+
+        def visit_arg(self, node: ast.arg) -> None:
+            # Mark arguments as defined, see docstring
+            defined.add(node.arg)
             self.generic_visit(node)
 
     _Finder().visit(tree)
