@@ -12,6 +12,12 @@ Run `pip install pypyp` <sup>(note the extra "yp"!)</sup>
 
 `pyp` requires Python 3.6 or above.
 
+## How it works
+
+`pyp` will statically analyse the input code to detect unused variables. Based on what it finds,
+it will proceed to transform the AST of the input code as needed. We then compile and execute the
+result, or if using `--explain`, unparse the AST back to source code.
+
 ## Examples
 
 This section will walk you through the details of using `pyp`, and hopefully replace your needs
@@ -120,12 +126,6 @@ del d['root']
 if d is not None:
     pypprint(d)
 ```
-
-## How it works
-
-`pyp` will statically analyse the input code to detect unused variables. Based on what it finds,
-it will proceed to transform the AST of the input code as needed. We then compile and execute the
-result, or if using `--explain`, unparse the AST back to source code.
 
 ## Related projects
 
