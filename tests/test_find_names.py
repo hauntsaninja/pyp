@@ -34,6 +34,7 @@ def test_comprehensions():
     assert ({"x"}, {"x"}) == find_names(ast.parse("(x for x in x)"))
     assert ({"x", "xx"}, {"xxx"}) == find_names(ast.parse("(x for xx in xxx for x in xx)"))
     assert ({"x", "xx"}, {"xx", "xxx"}) == find_names(ast.parse("(x for x in xx for xx in xxx)"))
+    assert ({"x"}, {"xx"}) == find_names(ast.parse("(x for x in xx if x == 'foo')"))
 
 
 def test_args():
