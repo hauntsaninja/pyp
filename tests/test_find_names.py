@@ -16,6 +16,11 @@ def test_builtins():
     assert ({"print"}, set()) == find_names(ast.parse("print = 5; print(5)"))
 
 
+def test_loops():
+    assert ({"x"}, {"y", "print"}) == find_names(ast.parse("for x in y: print(x)"))
+    assert (set(), {"x"}) == find_names(ast.parse("while x: pass"))
+
+
 def test_weird_assignments():
     assert ({"x"}, {"x"}) == find_names(ast.parse("x += 1"))
     assert ({"x"}, {"x"}) == find_names(ast.parse("for x in x: pass"))
