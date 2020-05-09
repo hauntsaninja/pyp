@@ -129,7 +129,7 @@ if d is not None:
 
 ## Related projects
 
-### [Pyed Piper](https://code.google.com/archive/p/pyp/) aka  Python Power at the Prompt
+### [Pyed Piper](https://github.com/yuvadm/pyp/) aka  Python Power at the Prompt
 
 `pyp` takes inspiration (and the command name!) from here.
 However, Pyed Piper appears to be unmaintained, Python 2 only, and further away from Python syntax
