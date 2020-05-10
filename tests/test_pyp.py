@@ -141,3 +141,9 @@ def test_edge_cases():
     assert run_cmd("pyp 'pypprint(1); pypprint(1, 2)'") == b"1\n1 2\n"
     assert run_cmd("pyp i", input="a\nb") == b"0\n1\n"
     assert run_cmd("pyp --define-pypprint lines", input="a\nb") == b"a\nb\n"
+
+    assert run_cmd("pyp 'if int(x) > 2: x'", input="1\n4\n2\n3") == b"4\n3\n"
+    assert run_cmd("pyp 'if int(x) > 2:' ' if int(x) < 4: x'", input="1\n4\n2\n3") == b"3\n"
+    assert run_cmd("pyp 'with contextlib.suppress(): x'", input="a\nb") == b"a\nb\n"
+    with raises(subprocess.CalledProcessError):
+        run_cmd("pyp 'if int(x) > 2: int(x)' 'else: int(x) + 1'")

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Added CHANGELOG.md
+- Automatic printing now tries a little harder to find standalone expressions to print
 - Mention variable names in error messages
 - Fixed bugs in undefined name detection that affected imports
 - Updated Related Projects in README.md

@@ -144,23 +144,28 @@ class PypTransform:
         if self.undefined & {"print", "pprint", "pypprint"}:  # has an explicit print
             return
 
-        def inner(tree: ast.Module, use_pypprint: bool = False) -> bool:
-            if not tree.body:
+        def inner(body: List[ast.stmt], use_pypprint: bool = False) -> bool:
+            if not body:
                 return False
-            if not isinstance(tree.body[-1], ast.Expr):
-                if not isinstance(tree.body[-1], ast.Pass):
-                    return False
-                del tree.body[-1]
+            if isinstance(body[-1], ast.Pass):
+                del body[-1]
                 return True
+            if not isinstance(body[-1], ast.Expr):
+                # If the last thing in the tree is a statement that has a body (and doesn't have an
+                # orelse, since users could expect the print in that branch), recursively look
+                # for a standalone expression.
+                if hasattr(body[-1], "body") and not getattr(body[-1], "orelse", []):
+                    return inner(body[-1].body, use_pypprint)  # type: ignore
+                return False
 
-            if isinstance(tree.body[-1].value, ast.Name):
-                output = tree.body[-1].value.id
-                tree.body.pop()
+            if isinstance(body[-1].value, ast.Name):
+                output = body[-1].value.id
+                body.pop()
             else:
                 output = self.get_valid_name("output")
                 self.define(output)
-                tree.body[-1] = ast.Assign(
-                    targets=[ast.Name(id=output, ctx=ast.Store())], value=tree.body[-1].value
+                body[-1] = ast.Assign(
+                    targets=[ast.Name(id=output, ctx=ast.Store())], value=body[-1].value
                 )
 
             print_fn = "print"
@@ -169,7 +174,7 @@ class PypTransform:
                 self.undefined.add("pypprint")
 
             if_print = ast.parse(f"if {output} is not None: {print_fn}({output})").body[0]
-            tree.body.append(if_print)
+            body.append(if_print)
 
             self.implicit_print = if_print.body[0].value  # type: ignore
             return True
@@ -179,7 +184,7 @@ class PypTransform:
         # subject to change later on if we call ``use_pypprint_for_implicit_print``. This logic
         # could be a little simpler if we refactored so that we know what transformations we will
         # do before we do them.
-        success = inner(self.after_tree, True) or inner(self.tree)
+        success = inner(self.after_tree.body, True) or inner(self.tree.body)
         if not success:
             raise PypError(
                 "Code doesn't generate any output; either explicitly print something, end with "
