@@ -1,56 +1,61 @@
 import ast
 import sys
+from typing import Set
 
 import pytest
 from pyp import find_names
 
 
+def check_find_names(code: str, defined: Set[str], undefined: Set[str]) -> None:
+    assert (defined, undefined) == find_names(ast.parse(code))
+
+
 def test_basic():
-    assert (set(), set("x")) == find_names(ast.parse("x[:3]"))
-    assert ({"x"}, set()) == find_names(ast.parse("x = 1"))
-    assert ({"x", "y"}, set()) == find_names(ast.parse("x = 1; y = x + 1"))
+    check_find_names("x[:3]", set(), {"x"})
+    check_find_names("x = 1", {"x"}, set())
+    check_find_names("x = 1; y = x + 1", {"x", "y"}, set())
 
 
 def test_builtins():
-    assert (set(), {"print"}) == find_names(ast.parse("print(5)"))
-    assert ({"print"}, set()) == find_names(ast.parse("print = 5; print(5)"))
+    check_find_names("print(5)", set(), {"print"})
+    check_find_names("print = 5; print(5)", {"print"}, set())
 
 
 def test_loops():
-    assert ({"x"}, {"y", "print"}) == find_names(ast.parse("for x in y: print(x)"))
-    assert (set(), {"x"}) == find_names(ast.parse("while x: pass"))
+    check_find_names("for x in y: print(x)", {"x"}, {"y", "print"})
+    check_find_names("while x: pass", set(), {"x"})
 
 
 def test_weird_assignments():
-    assert ({"x"}, {"x"}) == find_names(ast.parse("x += 1"))
-    assert ({"x"}, {"x"}) == find_names(ast.parse("for x in x: pass"))
-    assert ({"x", "y"}, {"x", "y"}) == find_names(ast.parse("x, y = x, y"))
+    check_find_names("x += 1", {"x"}, {"x"})
+    check_find_names("for x in x: pass", {"x"}, {"x"})
+    check_find_names("x, y = x, y", {"x", "y"}, {"x", "y"})
     if sys.version_info >= (3, 8):
-        assert ({"x"}, {"x"}) == find_names(ast.parse("(x := x)"))
+        check_find_names("(x := x)", {"x"}, {"x"})
 
 
 def test_comprehensions():
-    assert ({"x"}, {"y"}) == find_names(ast.parse("(x for x in y)"))
-    assert ({"x"}, {"x"}) == find_names(ast.parse("(x for x in x)"))
-    assert ({"x", "xx"}, {"xxx"}) == find_names(ast.parse("(x for xx in xxx for x in xx)"))
-    assert ({"x", "xx"}, {"xx", "xxx"}) == find_names(ast.parse("(x for x in xx for xx in xxx)"))
-    assert ({"x"}, {"xx"}) == find_names(ast.parse("(x for x in xx if x == 'foo')"))
+    check_find_names("(x for x in y)", {"x"}, {"y"})
+    check_find_names("(x for x in x)", {"x"}, {"x"})
+    check_find_names("(x for xx in xxx for x in xx)", {"x", "xx"}, {"xxx"})
+    check_find_names("(x for x in xx for xx in xxx)", {"x", "xx"}, {"xx", "xxx"})
+    check_find_names("(x for x in xx if x == 'foo')", {"x"}, {"xx"})
 
 
 def test_args():
-    assert ({"f"}, {"x"}) == find_names(ast.parse("f = lambda: x"))
-    assert ({"f", "x"}, set()) == find_names(ast.parse("f = lambda x: x"))
-    assert ({"f", "x"}, {"y"}) == find_names(ast.parse("f = lambda x: y"))
-    assert ({"a", "b", "c", "x", "y", "z"}, set()) == find_names(
-        ast.parse("def f(x, y = 0, *z, a, b = 0, **c): ...")
+    check_find_names("f = lambda: x", {"f"}, {"x"})
+    check_find_names("f = lambda x: x", {"f", "x"}, set())
+    check_find_names("f = lambda x: y", {"f", "x"}, {"y"})
+    check_find_names(
+        "def f(x, y = 0, *z, a, b = 0, **c): ...", {"a", "b", "c", "x", "y", "z"}, set()
     )
 
 
 @pytest.mark.xfail(reason="do not currently support scopes")
 def test_args_bad():
-    assert ({"f", "x"}, {"x"}) == find_names(ast.parse("f = lambda x: x; x"))
+    check_find_names("f = lambda x: x; x", {"f", "x"}, {"x"})
 
 
 @pytest.mark.xfail(reason="do not currently support deletes")
 def test_del():
-    assert ({"x"}, {"x"}) == find_names(ast.parse("x = 3; del x; x"))
+    check_find_names("x = 3; del x; x", {"x"}, {"x"})
