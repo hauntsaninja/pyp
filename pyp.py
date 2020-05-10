@@ -50,12 +50,7 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
         def generic_visit(self, node: ast.AST) -> None:
             # Adapted from ast.NodeVisitor.generic_visit, but re-orders traversal a little
             def order(f_v: Tuple[str, Any]) -> int:
-                _order = {
-                    "generators": -2,
-                    "iter": -2,
-                    "value": -1,
-                }
-                return _order.get(f_v[0], 0)
+                return {"generators": -2, "iter": -2, "value": -1}.get(f_v[0], 0)
 
             for _field, value in sorted(ast.iter_fields(node), key=order):
                 if isinstance(value, list):
