@@ -219,11 +219,17 @@ class PypTransform:
             return
 
         if (possible_vars["loop"] or possible_vars["index"]) and possible_vars["input"]:
-            raise PypError("Candidates found for both loop variable and input variable")
+            loop_names = ", ".join(possible_vars["loop"] or possible_vars["index"])
+            input_names = ", ".join(possible_vars["input"])
+            raise PypError(
+                f"Candidates found for both loop variable ({loop_names}) and "
+                f"input variable ({input_names})"
+            )
 
         for typ, names in possible_vars.items():
             if len(names) > 1:
-                raise PypError(f"Multiple candidates for {typ} variable")
+                names_str = ", ".join(names)
+                raise PypError(f"Multiple candidates for {typ} variable: {names_str}")
 
         if possible_vars["loop"] or possible_vars["index"]:
             # We'll loop over stdin and define loop / index variables

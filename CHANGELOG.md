@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Added CHANGELOG.md
+- Mention variable names in error messages
 - Fixed bugs in undefined name detection that affected imports
 - Updated Related Projects in README.md
 
