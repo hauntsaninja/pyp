@@ -24,8 +24,7 @@ This section will walk you through the details of using pyp, and hopefully repla
 for many common shell utilities. For a cheatsheet / tldr, run `pyp --help`.
 
 #### pyp can easily be used to apply Python code to each line in the input.
-Just use one of the magic
-variables `x`, `l`, `s` or `line` to refer to the current line.
+Just use one of the magic variables `x`, `l`, `s` or `line` to refer to the current line.
 
 ```
 # pyp like cut
@@ -34,8 +33,7 @@ ps x | pyp 'line.split()[4]'
 ```
 
 #### pyp can be used to easily apply Python code to the entire input as well.
-Use the magic variable
-`lines` for a list of rstripped lines or `stdin` for `sys.stdin`.
+Use the magic variable `lines` for a list of rstripped lines or `stdin` for `sys.stdin`.
 
 ```
 # pyp like wc -c
@@ -154,6 +152,21 @@ However,
 - It has some conveniences, like regex splitting of input, that you'd have to do for yourself here.
 - It supports Python 2 and early versions of Python 3.
 - It's been around for much longer.
+
+### [piep](http://gfxmonk.net/dist/doc/piep/) / [spy](https://github.com/edk0/spy) / [pyfil](https://github.com/ninjaaron/pyfil) / [pythonpy](https://github.com/fish2000/pythonpy-fork) / [oneliner](https://python-oneliner.readthedocs.io/en/latest/)
+
+Since writing pyp, it turns out there are more alternatives out there than I thought :-) Some quick
+notes:
+- Most of them rely on the user passing in flags, like Pyped.
+- Most of them have limitations around automatic printing, like only being able to automatically
+print single expressions or not handling iterables and dicts well.
+- Some of them have custom syntax for in-process command chaining, which can be convenient.
+- Some of them have specialised support for things like JSON input or running shell commands.
+- Some of them expose the input in interesting ways with custom line / file / stream objects.
+- Some of them have more advanced options for error handling.
+- None of them have anything like `--explain`.
+
+For whatever it's worth, I've listed these projects in approximate order of my personal preference.
 
 ### [mario](https://github.com/python-mario/mario)
 
