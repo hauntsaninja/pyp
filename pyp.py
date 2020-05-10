@@ -3,7 +3,7 @@ import argparse
 import ast
 import inspect
 import sys
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, List, Optional, Set, Tuple
 
 __all__ = ["pypprint"]
 
@@ -50,12 +50,10 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
         def generic_visit(self, node: ast.AST) -> None:
             # Adapted from ast.NodeVisitor.generic_visit, but re-orders traversal a little
             def order(f_v: Tuple[str, Any]) -> int:
-                _order: Dict[str, int] = {
-                    "generators": -1,
-                    "target": 1,
-                    "targets": 1,
-                    "body": 2,
-                    "ifs": 2,
+                _order = {
+                    "generators": -2,
+                    "iter": -2,
+                    "value": -1,
                 }
                 return _order.get(f_v[0], 0)
 
