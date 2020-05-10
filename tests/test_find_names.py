@@ -24,12 +24,15 @@ def test_builtins():
 def test_loops():
     check_find_names("for x in y: print(x)", {"x"}, {"y", "print"})
     check_find_names("while x: pass", set(), {"x"})
+    check_find_names("for x in x: pass", {"x"}, {"x"})
 
 
 def test_weird_assignments():
     check_find_names("x += 1", {"x"}, {"x"})
     check_find_names("for x in x: pass", {"x"}, {"x"})
     check_find_names("x, y = x, y", {"x", "y"}, {"x", "y"})
+    check_find_names("x: int = 1", {"x"}, {"int"})
+    check_find_names("x: int = x", {"x"}, {"int", "x"})
 
 
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python 3.8 or later")
@@ -46,7 +49,10 @@ def test_comprehensions():
     check_find_names("(x for x in x)", {"x"}, {"x"})
     check_find_names("(x for xx in xxx for x in xx)", {"x", "xx"}, {"xxx"})
     check_find_names("(x for x in xx for xx in xxx)", {"x", "xx"}, {"xx", "xxx"})
-    check_find_names("(x for x in xx if x == 'foo')", {"x"}, {"xx"})
+    check_find_names("(x for x in xx if x > 0)", {"x"}, {"xx"})
+    check_find_names("[x for x in xx if x > 0]", {"x"}, {"xx"})
+    check_find_names("{x for x in xx if x > 0}", {"x"}, {"xx"})
+    check_find_names("{x: x for x in xx if x > 0}", {"x"}, {"xx"})
 
 
 def test_args():
