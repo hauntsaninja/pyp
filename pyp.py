@@ -2,8 +2,9 @@
 import argparse
 import ast
 import inspect
+import os
 import sys
-from typing import Any, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 __all__ = ["pypprint"]
 
@@ -100,7 +101,12 @@ class PypTransform:
     """
 
     def __init__(
-        self, before: List[str], code: List[str], after: List[str], define_pypprint: bool
+        self,
+        before: List[str],
+        code: List[str],
+        after: List[str],
+        define_pypprint: bool,
+        pypconfig: Dict[str, Any],
     ) -> None:
         self.before_tree = ast.parse("\n".join(before))
         self.tree = ast.parse("\n".join(code))
@@ -114,6 +120,7 @@ class PypTransform:
             self.defined |= _def
 
         self.define_pypprint = define_pypprint
+        self.pypconfig = pypconfig
 
         # The print statement ``build_output`` will add, if it determines it needs to.
         self.implicit_print: Optional[ast.Call] = None
@@ -276,10 +283,14 @@ class PypTransform:
         subimports["Path"] = "pathlib"
         subimports["pp"] = "pprint"
         subimports["pypprint"] = "pyp"
+        subimports.update(**self.pypconfig["subimports"])
+        module_aliases = self.pypconfig["module_aliases"]
 
         def get_import_for_name(name: str) -> ast.stmt:
             if name in subimports:
                 return ast.parse(f"from {subimports[name]} import {name}").body[0]
+            if name in module_aliases:
+                return ast.parse(f"import {module_aliases[name]} as {name}").body[0]
             return ast.parse(f"import {name}").body[0]
 
         self.before_tree.body = [
@@ -321,15 +332,47 @@ exec(compile(tree, filename="<ast>", mode="exec"), {{}})
 
 def run_pyp(args: argparse.Namespace) -> None:
     try:
-        tree = PypTransform(args.before, args.code, args.after, args.define_pypprint).build()
+        pypconfig = load_pypconfig()
+        tree = PypTransform(
+            args.before, args.code, args.after, args.define_pypprint, pypconfig
+        ).build()
     except PypError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         sys.exit(1)
 
     if args.explain:
+        if pypconfig["shebang"]:
+            print(pypconfig["shebang"])
         print(unparse(tree))
     else:
         exec(compile(tree, filename="<ast>", mode="exec"), {})
+
+
+def load_pypconfig() -> Dict[str, Any]:
+    """Load config file from the PYPCONFIG environment variable, or return a
+    default config if that environment variable is not set.
+    """
+    pypconfig = {"module_aliases": {}, "subimports": {}, "shebang": ""}
+
+    pypconfig_fn = os.environ.get("PYPCONFIG")
+    if pypconfig_fn is not None:
+        if not os.path.isfile(pypconfig_fn):
+            raise PypError(f"No such PYPCONFIG file: {pypconfig_fn}")
+
+        import json
+
+        with open(pypconfig_fn, "r") as f:
+            json_obj = json.load(f)
+            pypconfig["module_aliases"] = json_obj.pop("module_aliases", {})
+            pypconfig["subimports"] = json_obj.pop("subimports", {})
+            pypconfig["shebang"] = json_obj.pop("shebang", "")
+            if len(json_obj) > 0:
+                extra_keys = " ".join(json_obj.keys())
+                raise PypError(
+                    f"Unrecognized section in PYPCONFIG file: {pypconfig_fn}: {extra_keys!r}"
+                )
+
+    return pypconfig
 
 
 def parse_options(args: List[str]) -> argparse.Namespace:

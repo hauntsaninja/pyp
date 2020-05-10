@@ -1,16 +1,19 @@
 import ast
+import json
+import os
 import shlex
 import subprocess
 import sys
-from typing import Optional
+import tempfile
+from typing import Dict, Optional
 
 from pytest import raises
 
 
-def run_cmd(cmd: str, input: Optional[str] = None) -> None:
+def run_cmd(cmd: str, input: Optional[str] = None, env: Optional[Dict[str, str]] = None) -> None:
     if isinstance(input, str):
         input = input.encode("utf-8")
-    return subprocess.check_output(cmd, shell=True, input=input)
+    return subprocess.check_output(cmd, shell=True, input=input, env=env)
 
 
 def compare_command(
@@ -112,6 +115,44 @@ if d is not None:
     pypprint(d)
 """
     script = script.lstrip("\n")
+    if sys.version_info < (3, 9):
+        # astunparse seems to parenthesise things slightly differently, so filter through ast to
+        # hackily ensure that the scripts are the same.
+        assert ast.dump(ast.parse(explain_output)) == ast.dump(ast.parse(script))
+    else:
+        assert explain_output == script
+
+
+def test_pypconfig():
+    command = ["pyp", "--explain", "eigvals(np.loadtxt(x))"]
+
+    pypconfig = {
+        "module_aliases": {"np": "numpy"},
+        "subimports": {"eigvals": "scipy.linalg"},
+        "shebang": "#!/usr/bin/env python3",
+    }
+
+    with tempfile.NamedTemporaryFile("w") as f:
+        env = dict(os.environ)
+        env["PYPCONFIG"] = f.name
+        json.dump(pypconfig, f)
+        f.flush()
+        explain_output = run_cmd(" ".join(map(shlex.quote, command)), env=env).decode("utf-8")
+
+    script = r"""
+#!/usr/bin/env python3
+from scipy.linalg import eigvals
+import numpy as np
+import sys
+for x in sys.stdin:
+    x = x.rstrip('\n')
+    output = eigvals(np.loadtxt(x))
+    if output is not None:
+        print(output)
+"""
+    script = script.lstrip("\n")
+    assert script.startswith(pypconfig["shebang"])
+
     if sys.version_info < (3, 9):
         # astunparse seems to parenthesise things slightly differently, so filter through ast to
         # hackily ensure that the scripts are the same.
