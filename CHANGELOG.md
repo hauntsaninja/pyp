@@ -9,7 +9,7 @@ Thanks to @yuvadm!
 
 ## [v0.2.1]
 
-- Fixed bugs in unused name detection that affected loops and filtering comprehensions
+- Fixed bugs in undefined name detection that affected loops and filtering comprehensions
 - Added a shebang
 - Improved tests
 
@@ -18,7 +18,7 @@ Thanks to @nickodell and @stuartlangridge!
 ## [v0.2]
 
 - Added `--define-pypprint`, in case you don't want the output of `--script` to import `pypprint` from `pyp`
-- Basic support for lambdas and functions in unused name detection, despite a lack of scopes.
+- Basic support for lambdas and functions in undefined name detection, despite a lack of scopes.
 - Improved documentation and tests
 
 ## [v0.1.1]

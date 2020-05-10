@@ -14,7 +14,7 @@ pyp requires Python 3.6 or above.
 
 ## How it works
 
-pyp will statically analyse the input code to detect unused variables. Based on what it finds,
+pyp will statically analyse the input code to detect undefined variables. Based on what it finds,
 it will proceed to transform the AST of the input code as needed. We then compile and execute the
 result, or if using `--explain`, unparse the AST back to source code.
 
@@ -170,7 +170,7 @@ For whatever it's worth, I've listed these projects in approximate order of my p
 
 ### [mario](https://github.com/python-mario/mario)
 
-`mario` is a featureful take on shell processing with Python. It doesn't use unused name detection,
+`mario` is a featureful take on shell processing with Python. It doesn't use undefined name detection,
 instead relying on a pluggable subcommand system. While the subcommands can mean a little more
 verbosity than pyp, `mario` makes up some ground by automatic application of functions and a custom
 command chaining syntax. The result can feel a little DSL-like, while pyp tries to feel very close
