@@ -315,16 +315,17 @@ class PypTransform:
 
 def unparse(tree: ast.Module) -> str:
     """Returns a Python script equivalent to executing ``tree``."""
+    shebang = "#!/usr/bin/env python3\n"
     if sys.version_info >= (3, 9):
-        return ast.unparse(tree)
+        return shebang + ast.unparse(tree)
     try:
         import astunparse  # type: ignore
 
-        return astunparse.unparse(tree)  # type: ignore
+        return shebang + astunparse.unparse(tree)  # type: ignore
     except ImportError:
         pass
 
-    return f"""
+    return f"""{shebang}
 from ast import *
 tree = fix_missing_locations({ast.dump(tree)})
 # To see this in human readable form, run `pyp` with Python 3.9

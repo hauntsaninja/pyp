@@ -99,6 +99,7 @@ def test_explain():
     ]
     explain_output = run_cmd(" ".join(map(shlex.quote, command))).decode("utf-8")
     script = r"""
+#!/usr/bin/env python3
 from collections import defaultdict
 from pyp import pypprint
 import sys
