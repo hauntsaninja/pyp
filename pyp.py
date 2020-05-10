@@ -80,6 +80,11 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
             defined.add(node.arg)
             self.generic_visit(node)
 
+        def visit_alias(self, node: ast.alias) -> None:
+            # Mark imports as defined
+            defined.add(node.asname if node.asname is not None else node.name)
+            self.generic_visit(node)
+
     _Finder().visit(tree)
     return defined, undefined
 

@@ -2,8 +2,9 @@
 
 ## Unreleased
 
-- Updated Related Projects in README.md
 - Added CHANGELOG.md
+- Fixed bugs in undefined name detection that affected imports
+- Updated Related Projects in README.md
 
 Thanks to @yuvadm!
 

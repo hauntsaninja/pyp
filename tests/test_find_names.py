@@ -48,6 +48,12 @@ def test_more_control_flow():
     check_find_names("with a as c, b as c: c", {"c"}, {"a", "b"})
 
 
+def test_import():
+    check_find_names("import x", {"x"}, set())
+    check_find_names("from y import x", {"x"}, set())
+    check_find_names("from y import z as x", {"x"}, set())
+
+
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python 3.8 or later")
 def test_walrus():
     check_find_names("(x := x)", {"x"}, {"x"})
