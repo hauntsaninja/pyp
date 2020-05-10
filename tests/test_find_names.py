@@ -25,6 +25,8 @@ def test_loops():
     check_find_names("for x in y: print(x)", {"x"}, {"y", "print"})
     check_find_names("while x: pass", set(), {"x"})
     check_find_names("for x in x: pass", {"x"}, {"x"})
+    check_find_names("for x in xx: y = 1\nelse: y", {"x", "y"}, {"xx"})
+    check_find_names("for x in xx: pass\nelse: y", {"x"}, {"xx", "y"})
 
 
 def test_weird_assignments():
@@ -53,6 +55,7 @@ def test_walrus():
     check_find_names("if (x := 1): print(x)", {"x"}, {"print"})
     check_find_names("(y for x in xx if (y := x) == 'foo')", {"x", "y"}, {"xx"})
     check_find_names("x: (x := 1) = 2", {"x"}, set())
+    check_find_names("f'{(x := 1)} {x}'", {"x"}, set())
 
 
 def test_comprehensions():
