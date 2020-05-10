@@ -35,6 +35,17 @@ def test_weird_assignments():
     check_find_names("x: int = x", {"x"}, {"int", "x"})
 
 
+def test_more_control_flow():
+    check_find_names("try: x = 1\nexcept: x", {"x"}, set())
+    check_find_names("try: x = 1\nexcept: y", {"x"}, {"y"})
+    check_find_names("try: x = 1\nexcept: y\nfinally: x", {"x"}, {"y"})
+    check_find_names("try: x = 1\nexcept: y\nfinally: z", {"x"}, {"y", "z"})
+    check_find_names("with a as x: x", {"x"}, {"a"})
+    check_find_names("with a as x, b as y: x", {"x", "y"}, {"a", "b"})
+    check_find_names("with a as b, b as c: c", {"b", "c"}, {"a"})
+    check_find_names("with a as c, b as c: c", {"c"}, {"a", "b"})
+
+
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python 3.8 or later")
 def test_walrus():
     check_find_names("(x := x)", {"x"}, {"x"})
