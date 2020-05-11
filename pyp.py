@@ -349,12 +349,7 @@ exec(compile(tree, filename="<ast>", mode="exec"), {{}})
 
 
 def run_pyp(args: argparse.Namespace) -> None:
-    try:
-        tree = PypTransform(args.before, args.code, args.after, args.define_pypprint).build()
-    except PypError as e:
-        print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
-
+    tree = PypTransform(args.before, args.code, args.after, args.define_pypprint).build()
     if args.explain:
         print(unparse(tree))
     else:
@@ -409,7 +404,11 @@ def parse_options(args: List[str]) -> argparse.Namespace:
 
 
 def main() -> None:
-    run_pyp(parse_options(sys.argv[1:]))
+    try:
+        run_pyp(parse_options(sys.argv[1:]))
+    except PypError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

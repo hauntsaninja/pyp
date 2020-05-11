@@ -1,13 +1,16 @@
 import ast
+import contextlib
+import io
 import shlex
 import subprocess
 import sys
-from typing import Optional
+from typing import List, Optional, Union
 
-from pytest import raises
+import pyp
+import pytest
 
 
-def run_cmd(cmd: str, input: Optional[str] = None) -> None:
+def run_cmd(cmd: str, input: Optional[str] = None) -> bytes:
     if isinstance(input, str):
         input = input.encode("utf-8")
     return subprocess.check_output(cmd, shell=True, input=input)
@@ -27,7 +30,7 @@ def compare_command(
 
 
 def test_examples():
-    """Test the examples in the README."""
+    """Test approximately the examples in the README."""
 
     example = "python\nsnake\nss\nmagpy\npiethon\nreadme.md\n"
 
@@ -49,7 +52,7 @@ def test_examples():
         example_cmd='jq .[1]["lol"]',
         pyp_cmd="""pyp 'json.load(stdin)[1]["lol"]'""",
         input='[0, {"lol": "hmm"}, 0]',
-        allow_example_fail=True,
+        allow_example_fail=True,  # CI doesn't have jq and I don't care enough to change that
     )
     compare_command(
         example_cmd="grep -E '(py|md)'",
@@ -84,6 +87,24 @@ def test_examples():
     )
 
 
+def run_pyp(cmd: Union[str, List[str]], input: str = "") -> str:
+    """Run pyp in process. It's quicker and allows us to mock and so on."""
+    if isinstance(cmd, str):
+        cmd = shlex.split(cmd)
+    if cmd[0] == "pyp":
+        del cmd[0]
+
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        try:
+            old_stdin = sys.stdin
+            sys.stdin = io.StringIO(input)
+            pyp.run_pyp(pyp.parse_options(cmd))
+        finally:
+            sys.stdin = old_stdin
+    return output.getvalue()
+
+
 def test_explain():
     command = [
         "pyp",
@@ -97,7 +118,7 @@ def test_explain():
         "-a",
         "d",
     ]
-    explain_output = run_cmd(" ".join(map(shlex.quote, command))).decode("utf-8")
+    explain_output = run_pyp(command)
     script = r"""
 #!/usr/bin/env python3
 from collections import defaultdict
@@ -122,29 +143,29 @@ if d is not None:
 
 
 def test_failures():
-    with raises(subprocess.CalledProcessError):
+    with pytest.raises(pyp.PypError):
         # No possible output
-        run_cmd("pyp 'x = 1'")
-    with raises(subprocess.CalledProcessError):
+        run_pyp("pyp 'x = 1'")
+    with pytest.raises(pyp.PypError):
         # Unclear which transformation
-        run_cmd("pyp 'print(x); print(len(lines))'")
-    with raises(subprocess.CalledProcessError):
+        run_pyp("pyp 'print(x); print(len(lines))'")
+    with pytest.raises(pyp.PypError):
         # Multiple candidates for loop variable
-        run_cmd("pyp 'print(x); print(s)'")
+        run_pyp("pyp 'print(x); print(s)'")
 
 
 def test_edge_cases():
     """Tests that hit various edge cases and/or improve coverage."""
-    assert run_cmd("pyp pass") == b""
-    assert run_cmd("pyp '1; pass'") == b""
-    assert run_cmd("pyp 'print(1)'") == b"1\n"
-    assert run_cmd("pyp 'output = 0; 1'") == b"1\n"
-    assert run_cmd("pyp 'pypprint(1); pypprint(1, 2)'") == b"1\n1 2\n"
-    assert run_cmd("pyp i", input="a\nb") == b"0\n1\n"
-    assert run_cmd("pyp --define-pypprint lines", input="a\nb") == b"a\nb\n"
+    assert run_pyp("pyp pass") == ""
+    assert run_pyp("pyp '1; pass'") == ""
+    assert run_pyp("pyp 'print(1)'") == "1\n"
+    assert run_pyp("pyp 'output = 0; 1'") == "1\n"
+    assert run_pyp("pyp 'pypprint(1); pypprint(1, 2)'") == "1\n1 2\n"
+    assert run_pyp("pyp i", input="a\nb") == "0\n1\n"
+    assert run_pyp("pyp --define-pypprint lines", input="a\nb") == "a\nb\n"
 
-    assert run_cmd("pyp 'if int(x) > 2: x'", input="1\n4\n2\n3") == b"4\n3\n"
-    assert run_cmd("pyp 'if int(x) > 2:' ' if int(x) < 4: x'", input="1\n4\n2\n3") == b"3\n"
-    assert run_cmd("pyp 'with contextlib.suppress(): x'", input="a\nb") == b"a\nb\n"
-    with raises(subprocess.CalledProcessError):
-        run_cmd("pyp 'if int(x) > 2: int(x)' 'else: int(x) + 1'")
+    assert run_pyp("pyp 'if int(x) > 2: x'", input="1\n4\n2\n3") == "4\n3\n"
+    assert run_pyp("pyp 'if int(x) > 2:' ' if int(x) < 4: x'", input="1\n4\n2\n3") == "3\n"
+    assert run_pyp("pyp 'with contextlib.suppress(): x'", input="a\nb") == "a\nb\n"
+    with pytest.raises(pyp.PypError):
+        run_pyp("pyp 'if int(x) > 2: int(x)' 'else: int(x) + 1'")
