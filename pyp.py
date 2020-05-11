@@ -97,6 +97,11 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
             defined.add(node.name)
             self.generic_visit(node)
 
+        def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+            if node.name:
+                defined.add(node.name)
+            self.generic_visit(node)
+
     _Finder().visit(tree)
     return defined, undefined
 

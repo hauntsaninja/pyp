@@ -42,6 +42,9 @@ def test_more_control_flow():
     check_find_names("try: x = 1\nexcept: y", {"x"}, {"y"})
     check_find_names("try: x = 1\nexcept: y\nfinally: x", {"x"}, {"y"})
     check_find_names("try: x = 1\nexcept: y\nfinally: z", {"x"}, {"y", "z"})
+    check_find_names(
+        "try: x\nexcept Exception as e: z = e\nfinally: y", {"e", "z"}, {"Exception", "x", "y"}
+    )
     check_find_names("with a as x: x", {"x"}, {"a"})
     check_find_names("with a as x, b as y: x", {"x", "y"}, {"a", "b"})
     check_find_names("with a as b, b as c: c", {"b", "c"}, {"a"})
