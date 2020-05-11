@@ -151,7 +151,7 @@ class PypTransform:
 
     def get_valid_name(self, name: str) -> str:
         """Return a name related to ``name`` that does not conflict with existing definitions."""
-        while name in self.defined:
+        while name in self.defined or name in self.undefined:
             name += "_"
         return name
 
