@@ -52,7 +52,6 @@ def test_examples():
         example_cmd='jq .[1]["lol"]',
         pyp_cmd="""pyp 'json.load(stdin)[1]["lol"]'""",
         input='[0, {"lol": "hmm"}, 0]',
-        allow_example_fail=True,  # CI doesn't have jq and I don't care enough to change that
     )
     compare_command(
         example_cmd="grep -E '(py|md)'",
