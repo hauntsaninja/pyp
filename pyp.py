@@ -3,6 +3,7 @@ import argparse
 import ast
 import inspect
 import sys
+import textwrap
 from typing import Any, List, Optional, Set, Tuple
 
 __all__ = ["pypprint"]
@@ -124,9 +125,12 @@ class PypTransform:
     def __init__(
         self, before: List[str], code: List[str], after: List[str], define_pypprint: bool
     ) -> None:
-        self.before_tree = ast.parse("\n".join(before))
-        self.tree = ast.parse("\n".join(code))
-        self.after_tree = ast.parse("\n".join(after))
+        def parse_input(c: List[str]) -> ast.Module:
+            return ast.parse(textwrap.dedent("\n".join(c).strip()))
+
+        self.before_tree = parse_input(before)
+        self.tree = parse_input(code)
+        self.after_tree = parse_input(after)
 
         self.defined: Set[str] = set()
         self.undefined: Set[str] = set()
