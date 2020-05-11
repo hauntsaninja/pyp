@@ -2,8 +2,10 @@
 import argparse
 import ast
 import inspect
+import os
 import sys
-from typing import Any, List, Optional, Set, Tuple
+from itertools import takewhile
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 __all__ = ["pypprint"]
 
@@ -101,6 +103,90 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
     return defined, undefined
 
 
+class PypConfig:
+    """PypConfig is a configuration file that allows users or administrators
+    to import modules that can get used in any pyp invocation, and to define
+    utility functions that are available inside any pyp invocation
+
+    Example
+    -------
+    $ cat pypconfig.py
+    #!/usr/bin/env python
+    import numpy as np
+    from scipy.linalg import eigvals
+    from numpy import longname as alias
+    def add_one(x):
+        return x+1
+
+    >>> conf = PypConfig("pypconfig.py")
+    >>> conf.imports
+    {'np': 'numpy',
+     'eigvals': 'from scipy.linalg import eigvals',
+     'alias': 'from numpy import longname as alias',
+     ...}
+    """
+
+    def __init__(self, config_fn: str) -> None:
+        self.imports: Dict[str, ast.AST] = {
+            "Path": ast.parse("from pathlib import Path").body[0],
+            "pp": ast.parse("from pprint import pprint as pp").body[0],
+            "pypprint": ast.parse("from pyp import pypprint").body[0],
+        }
+        self.parse_import_star("math")
+        self.parse_import_star("itertools")
+        self.parse_import_star("collections")
+
+        with open(config_fn) as f:
+            pypconfig_data = f.read()
+            pypconfig_mod = ast.parse(pypconfig_data)
+
+        self.shebang = "\n".join(
+            takewhile(lambda l: l.startswith("#"), pypconfig_data.splitlines())
+        )
+        if not self.shebang:
+            self.shebang = "#!/usr/bin/env python3"
+
+        for stmt in pypconfig_mod.body:
+            if isinstance(stmt, ast.Import):
+                self.parse_import(stmt)
+            elif isinstance(stmt, ast.ImportFrom):
+                self.parse_import_from(stmt)
+            elif isinstance(stmt, ast.FunctionDef):
+                self.imports[stmt.name] = stmt
+            else:
+                raise PypError(
+                    f"""Unsupported configuration feature
+  File "{config_fn}", line {stmt.lineno}
+    {pypconfig_data.splitlines()[stmt.lineno-1]}
+    {" " * stmt.col_offset + "^"}
+SyntaxError: Top-level statements beyond imports and function definitions are not supported
+"""
+                )
+
+    def parse_import(self, stmt: ast.Import):
+        for alias in stmt.names:
+            if alias.asname is None:
+                self.imports[alias.name] = stmt
+            else:
+                self.imports[alias.asname] = stmt
+
+    def parse_import_from(self, stmt: ast.ImportFrom):
+        for alias in stmt.names:
+            module = stmt.module
+            if alias.asname is None:
+                if alias.name == "*":
+                    self.parse_import_star(module)
+                else:
+                    self.imports[alias.name] = stmt
+            else:
+                self.imports[alias.asname] = stmt
+
+    def parse_import_star(self, module: str):
+        for name in dir(__import__(module)):
+            if not name.startswith("_"):
+                self.imports[name] = ast.parse(f"from {module} import {name}").body[0]
+
+
 class PypError(Exception):
     pass
 
@@ -117,7 +203,12 @@ class PypTransform:
     """
 
     def __init__(
-        self, before: List[str], code: List[str], after: List[str], define_pypprint: bool
+        self,
+        before: List[str],
+        code: List[str],
+        after: List[str],
+        define_pypprint: bool,
+        config: PypConfig,
     ) -> None:
         self.before_tree = ast.parse("\n".join(before))
         self.tree = ast.parse("\n".join(code))
@@ -131,6 +222,7 @@ class PypTransform:
             self.defined |= _def
 
         self.define_pypprint = define_pypprint
+        self.config = config
 
         # The print statement ``build_output`` will add, if it determines it needs to.
         self.implicit_print: Optional[ast.Call] = None
@@ -296,18 +388,9 @@ class PypTransform:
         if not missing_names:
             return
 
-        subimports = {
-            name: module
-            for module in ("itertools", "math", "collections")
-            for name in dir(__import__(module))
-        }
-        subimports["Path"] = "pathlib"
-        subimports["pp"] = "pprint"
-        subimports["pypprint"] = "pyp"
-
         def get_import_for_name(name: str) -> ast.stmt:
-            if name in subimports:
-                return ast.parse(f"from {subimports[name]} import {name}").body[0]
+            if name in self.config.imports:
+                return self.config.imports[name]
             return ast.parse(f"import {name}").body[0]
 
         self.before_tree.body = [
@@ -349,8 +432,11 @@ exec(compile(tree, filename="<ast>", mode="exec"), {{}})
 
 
 def run_pyp(args: argparse.Namespace) -> None:
-    tree = PypTransform(args.before, args.code, args.after, args.define_pypprint).build()
+    config = PypConfig(os.environ.get("PYPCONFIG"))
+    tree = PypTransform(args.before, args.code, args.after, args.define_pypprint, config).build()
+
     if args.explain:
+        print(config.shebang)
         print(unparse(tree))
     else:
         exec(compile(tree, filename="<ast>", mode="exec"), {})
