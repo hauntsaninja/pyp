@@ -49,7 +49,7 @@ def test_examples():
         input="echo echo",
     )
     compare_command(
-        example_cmd='jq .[1]["lol"]',
+        example_cmd="""jq -r '.[1]["lol"]'""",
         pyp_cmd="""pyp 'json.load(stdin)[1]["lol"]'""",
         input='[0, {"lol": "hmm"}, 0]',
     )
