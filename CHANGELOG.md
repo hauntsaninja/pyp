@@ -6,7 +6,7 @@
 - Automatic printing now tries a little harder to find standalone expressions to print
 - The output of --script now has a shebang
 - Mention variable names in error messages
-- Fixed bugs in undefined name detection that affected imports
+- Improved undefined name detection for imports, class and function definitions
 - Updated Related Projects in README.md
 
 Thanks to @rmcgibbo and @yuvadm!

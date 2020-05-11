@@ -50,8 +50,10 @@ def test_more_control_flow():
 
 def test_import():
     check_find_names("import x", {"x"}, set())
+    check_find_names("import y as x", {"x"}, set())
     check_find_names("from y import x", {"x"}, set())
     check_find_names("from y import z as x", {"x"}, set())
+    check_find_names("from x import *", {"*"}, set())
 
 
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python 3.8 or later")
@@ -80,8 +82,19 @@ def test_args():
     check_find_names("f = lambda x: x", {"f", "x"}, set())
     check_find_names("f = lambda x: y", {"f", "x"}, {"y"})
     check_find_names(
-        "def f(x, y = 0, *z, a, b = 0, **c): ...", {"a", "b", "c", "x", "y", "z"}, set()
+        "def f(x, y = 0, *z, a, b = 0, **c): ...", {"f", "a", "b", "c", "x", "y", "z"}, set()
     )
+
+
+def test_definitions():
+    check_find_names("def f(): ...", {"f"}, set())
+    check_find_names("def f(): f()", {"f"}, set())
+    check_find_names("def f(): g()", {"f"}, {"g"})
+    check_find_names("def f(x=g): ...", {"f", "x"}, {"g"})
+    check_find_names("def f(x=f): ...", {"f", "x"}, set())
+    check_find_names("class A: ...", {"A"}, set())
+    check_find_names("class A(B): ...", {"A"}, {"B"})
+    check_find_names("class A(A): ...", {"A"}, {"A"})
 
 
 @pytest.mark.xfail(reason="do not currently support scopes")

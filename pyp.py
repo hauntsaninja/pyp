@@ -85,6 +85,18 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
             defined.add(node.asname if node.asname is not None else node.name)
             self.generic_visit(node)
 
+        def visit_ClassDef(self, node: ast.ClassDef) -> None:
+            self.generic_visit(node)
+            defined.add(node.name)
+
+        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+            defined.add(node.name)
+            self.generic_visit(node)
+
+        def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+            defined.add(node.name)
+            self.generic_visit(node)
+
     _Finder().visit(tree)
     return defined, undefined
 
