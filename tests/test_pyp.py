@@ -6,6 +6,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import traceback
 from typing import List, Optional, Union
 from unittest.mock import patch
 
@@ -162,6 +163,28 @@ def test_user_error():
     with pytest.raises(pyp.PypError, match=pattern):
         run_pyp("pyp 'lol'")
 
+    # If our sins against traceback implementation details come back to haunt us, and we can't
+    # reconstruct a traceback, check that we still output something reasonable
+    TBE = traceback.TracebackException
+    with patch("traceback.TracebackException") as mock_tb:
+        count = 0
+
+        def effect(*args, **kwargs):
+            nonlocal count
+            if count == 0:
+                assert args[0] == ZeroDivisionError
+                count += 1
+                raise Exception
+            return TBE(*args, **kwargs)
+
+        mock_tb.side_effect = effect
+        pattern = re.compile("Code raised.*ZeroDivisionError", re.DOTALL)
+        with pytest.raises(pyp.PypError, match=pattern) as e:
+            run_pyp("pyp '1 / 0'")
+        # Make sure that the test works and we couldn't actually reconstruct a traceback
+        assert "Possible" not in e.value.args[0]
+
+    # Check the entire output, end to end
     pyp_error = run_cmd("pyp 'def f(): 1/0' 'f()'", check=False)
     message = lambda x, y: (  # noqa
         "error: Code raised the following exception, consider using --explain to investigate:\n\n"
