@@ -431,7 +431,7 @@ class PypTransform:
 
         def get_names_in_module(module: str) -> Any:
             mod = importlib.import_module(module)
-            return getattr(mod, "__all__", dir(mod))
+            return getattr(mod, "__all__", (n for n in dir(mod) if not n.startswith("_")))
 
         wildcard_imports = ["itertools", "math", "collections"] + self.config.wildcard_imports
         subimports = {
