@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 import argparse
 import ast
+import importlib
 import inspect
+import itertools
+import os
 import sys
 import textwrap
-from typing import Any, List, Optional, Set, Tuple
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 __all__ = ["pypprint"]
 
@@ -107,8 +111,94 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
     return defined, undefined
 
 
+def get_config_contents() -> str:
+    """Returns the empty string if no config file is specified."""
+    config_file = os.environ.get("PYP_CONFIG_PATH")
+    if config_file is None:
+        return ""
+    try:
+        with open(config_file, "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        raise PypError(f"Config file not found at PYP_CONFIG_PATH={config_file}")
+
+
 class PypError(Exception):
     pass
+
+
+class PypConfig:
+    """PypConfig is responsible for handling user configuration.
+
+    We allow users to configure pyp with a config file that is very Python-like. Rather than
+    executing the config file as Python unconditionally, we treat it as a source of definitions. We
+    keep track of what each top-level stmt in the AST of the config file defines, and if we need
+    that definition in our program, use it. A wrinkle here is that definitions in the config file
+    may depend on other definitions within the config file; this is handled by build_missing_config.
+    Another wrinkle is wildcard imports; these are kept track of and added to the list of special
+    cased wildcard imports in build_missing_imports.
+
+    """
+
+    def __init__(self) -> None:
+        config_contents = get_config_contents()
+        try:
+            config_ast = ast.parse(config_contents)
+        except SyntaxError as e:
+            error = f": {e.text!r}" if e.text else ""
+            raise PypError(f"Config has invalid syntax{error}")
+
+        # List of config parts
+        self.parts: List[ast.stmt] = config_ast.body
+        # Maps from a name to index of config part that defines it
+        self.defined_names: Dict[str, int] = {}
+        # Maps from index of config part to undefined names it needs
+        self.requires: Dict[int, Set[str]] = defaultdict(set)
+        # Modules from which automatic imports work without qualification, ordered by AST encounter
+        self.wildcard_imports: List[str] = []
+
+        self.shebang: str = "#!/usr/bin/env python3"
+        if config_contents.startswith("#!"):
+            self.shebang = "\n".join(
+                itertools.takewhile(lambda l: l.startswith("#"), config_contents.splitlines())
+            )
+
+        def add_defs(index: int, defs: Set[str]) -> None:
+            for name in defs:
+                if self.defined_names.get(name, index) != index:
+                    raise PypError(f"Config has multiple definitions of {repr(name)}")
+                self.defined_names[name] = index
+
+        def inner(index: int, part: ast.AST) -> None:
+            if isinstance(part, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                # Functions and classes have their own scopes, so discard names that they define
+                _, undefs = find_names(part)
+                add_defs(index, {part.name})
+                self.requires[index].update(undefs)
+            elif isinstance(part, ast.ImportFrom):
+                defs, _ = find_names(part)
+                if "*" in defs:
+                    defs.remove("*")
+                    if part.module is None:
+                        raise PypError(f"Config has unsupported import on line {part.lineno}")
+                    self.wildcard_imports.append(part.module)
+                add_defs(index, defs)
+            elif isinstance(part, (ast.Import, ast.Assign, ast.AnnAssign)):
+                defs, undefs = find_names(part)
+                add_defs(index, defs)
+                self.requires[index].update(undefs)
+            elif hasattr(part, "body") or hasattr(part, "orelse"):
+                # This allows us to do e.g., basic conditional definition
+                for part in getattr(part, "body", []) + getattr(part, "orelse", []):
+                    inner(index, part)
+            else:
+                raise PypError(
+                    "Config only supports a subset of Python at module level; "
+                    f"unsupported construct on line {part.lineno}"
+                )
+
+        for index, part in enumerate(self.parts):
+            inner(index, part)
 
 
 class PypTransform:
@@ -123,7 +213,12 @@ class PypTransform:
     """
 
     def __init__(
-        self, before: List[str], code: List[str], after: List[str], define_pypprint: bool
+        self,
+        before: List[str],
+        code: List[str],
+        after: List[str],
+        define_pypprint: bool,
+        config: PypConfig,
     ) -> None:
         def parse_input(c: List[str]) -> ast.Module:
             return ast.parse(textwrap.dedent("\n".join(c).strip()))
@@ -140,6 +235,7 @@ class PypTransform:
             self.defined |= _def
 
         self.define_pypprint = define_pypprint
+        self.config = config
 
         # The print statement ``build_output`` will add, if it determines it needs to.
         self.implicit_print: Optional[ast.Call] = None
@@ -291,24 +387,45 @@ class PypTransform:
             self.tree.body = input_assign.body + self.tree.body
             self.use_pypprint_for_implicit_print()
 
+    def build_missing_config(self) -> None:
+        """Modifies the AST to define undefined names defined in config."""
+        config_definitions: Set[str] = set()
+        attempt_to_define = set(self.undefined)
+        while attempt_to_define:
+            can_define = attempt_to_define & set(self.config.defined_names)
+            config_definitions.update(can_define)
+            # The things we can define might in turn require some definitions, so update the things
+            # we need to attempt to define and loop
+            attempt_to_define = set()
+            for name in can_define:
+                attempt_to_define.update(self.config.requires[self.config.defined_names[name]])
+            # We don't need to attempt to define things we've already decided we need to define
+            attempt_to_define -= config_definitions
+
+        config_indices = sorted({self.config.defined_names[name] for name in config_definitions})
+        self.before_tree.body = [
+            self.config.parts[i] for i in config_indices
+        ] + self.before_tree.body
+        self.undefined -= config_definitions
+
     def build_missing_imports(self) -> None:
         """Modifies the AST to import undefined names."""
-        missing_names = self.undefined - set(dir(__import__("builtins")))
+        self.undefined -= set(dir(__import__("builtins")))
 
-        if self.define_pypprint and "pypprint" in missing_names:
+        if self.define_pypprint and "pypprint" in self.undefined:
             # Add the definition of pypprint to the AST
             self.before_tree.body = (
                 ast.parse(inspect.getsource(pypprint)).body + self.before_tree.body
             )
-            missing_names.remove("pypprint")
+            self.undefined.remove("pypprint")
 
-        if not missing_names:
-            return
+        def get_names_in_module(module: str) -> Any:
+            mod = importlib.import_module(module)
+            return getattr(mod, "__all__", dir(mod))
 
+        wildcard_imports = ["itertools", "math", "collections"] + self.config.wildcard_imports
         subimports = {
-            name: module
-            for module in ("itertools", "math", "collections")
-            for name in dir(__import__(module))
+            name: module for module in wildcard_imports for name in get_names_in_module(module)
         }
         subimports["Path"] = "pathlib"
         subimports["pp"] = "pprint"
@@ -320,13 +437,14 @@ class PypTransform:
             return ast.parse(f"import {name}").body[0]
 
         self.before_tree.body = [
-            get_import_for_name(name) for name in sorted(missing_names)
+            get_import_for_name(name) for name in sorted(self.undefined)
         ] + self.before_tree.body
 
     def build(self) -> ast.Module:
         """Returns a transformed AST."""
         self.build_output()
         self.build_input()
+        self.build_missing_config()
         self.build_missing_imports()
 
         ret = ast.parse("")
@@ -336,17 +454,16 @@ class PypTransform:
 
 def unparse(tree: ast.Module) -> str:
     """Returns a Python script equivalent to executing ``tree``."""
-    shebang = "#!/usr/bin/env python3\n"
     if sys.version_info >= (3, 9):
-        return shebang + ast.unparse(tree)
+        return ast.unparse(tree)
     try:
         import astunparse  # type: ignore
 
-        return shebang + astunparse.unparse(tree)  # type: ignore
+        return astunparse.unparse(tree)  # type: ignore
     except ImportError:
         pass
 
-    return f"""{shebang}
+    return f"""
 from ast import *
 tree = fix_missing_locations({ast.dump(tree)})
 # To see this in human readable form, run `pyp` with Python 3.9
@@ -358,8 +475,10 @@ exec(compile(tree, filename="<ast>", mode="exec"), {{}})
 
 
 def run_pyp(args: argparse.Namespace) -> None:
-    tree = PypTransform(args.before, args.code, args.after, args.define_pypprint).build()
+    config = PypConfig()
+    tree = PypTransform(args.before, args.code, args.after, args.define_pypprint, config).build()
     if args.explain:
+        print(config.shebang)
         print(unparse(tree))
     else:
         exec(compile(tree, filename="<ast>", mode="exec"), {})
