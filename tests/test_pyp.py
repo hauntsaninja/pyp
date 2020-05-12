@@ -271,6 +271,15 @@ assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process 
 
 
 @patch("pyp.get_config_contents")
+def test_config_lazy_wildcard_import(config_mock):
+    # importing "this" has a side effect, so we can tell whether or not it was imported
+    config_mock.return_value = "from this import *"
+    assert run_pyp("pass") == ""  # not imported
+    assert run_pyp("x[:3]") == ""  # not imported
+    assert "Zen of Python" in run_pyp("asyncio")  # imported
+
+
+@patch("pyp.get_config_contents")
 def test_config_scope(config_mock):
     config_mock.return_value = """
 def f(x): contextlib = 5
