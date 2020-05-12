@@ -137,22 +137,27 @@ import numpy as np
 import tensorflow as tf
 from pipetools import *
 
-def useful_function(): ...
-class UsefulClass: ...
+def p95(data):
+    return np.percentile(data, 95)
+
+class PotentiallyUsefulClass: ...
 ```
 
 When attempting to define undefined names, pyp will statically* analyse this file as a source of
 possible definitions. This means that if you don't use `tf`, we won't import `tensorflow`! And of
-course, `--explain` will show you exactly what gets run:
+course, `--explain` will show you exactly what gets run (and what doesn't!):
 
 ```
-pyp --explain 'np.array([0]); pass'
+pyp --explain 'print(p95(list(map(float, stdin))))'
 
 #!/usr/bin/env python3
 import sys
 import numpy as np
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
-np.array([0])
+
+def p95(data):
+    return np.percentile(data, 95)
+stdin = sys.stdin
+print(p95(list(map(float, stdin))))
 ```
 
 Note, importing things from libraries like [pipetools](https://0101.github.io/pipetools/doc/index.html)
@@ -163,7 +168,7 @@ seq 1 110 | pyp 'lines > foreach(int) | where(X > 100) | group_by(X % 3) | sort_
 
 <sub>\*If you use wildcard imports, we will need to import those modules if there remain undefined
 names, though we skip this in the happy path. If this matters to you, definitely don't
-`from tensorflow import *`! </sub>
+`from tensorflow import *` in your config! </sub>
 
 ## Related projects
 
