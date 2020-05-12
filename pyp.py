@@ -479,7 +479,7 @@ class PypTransform:
 
         ret = ast.parse("")
         ret.body = self.before_tree.body + self.tree.body + self.after_tree.body
-        # Add line numbers to the nodes, so we can be more helpful on error
+        # Add fake line numbers to the nodes, so we can generate a traceback on error
         i = 0
         for node in dfs_walk(ret):
             if isinstance(node, ast.stmt):
@@ -520,21 +520,30 @@ def run_pyp(args: argparse.Namespace) -> None:
         print(unparse(tree))
     else:
         try:
-            exec(compile(tree, filename="<ast>", mode="exec"), {})
+            exec(compile(tree, filename="<pyp>", mode="exec"), {})
         except Exception as e:
-            message = (
-                "Code raised the following exception, consider using --explain to investigate:\n\n"
-                + "".join(traceback.format_exception_only(type(e), e)).strip()
-            )
             try:
-                lineno = e.__traceback__.tb_next.tb_lineno  # type: ignore
-                code = unparse(
-                    next(n for n in dfs_walk(tree) if getattr(n, "lineno", -1) == lineno), True
-                ).strip()
-                message += f"\n\nPossibly at:\n{code}"
+                line_to_node: Dict[int, ast.AST] = {}
+                for node in dfs_walk(tree):
+                    line_to_node.setdefault(getattr(node, "lineno", -1), node)
+                # Time to commit several sins against CPython implementation details
+                tb_except = traceback.TracebackException(
+                    type(e), e, e.__traceback__.tb_next  # type: ignore
+                )
+                tb_except.exc_traceback = None  # type: ignore
+                for fs in tb_except.stack:
+                    if fs.filename == "<pyp>":
+                        fs._line = unparse(line_to_node[fs.lineno]).strip()  # type: ignore
+                        fs.lineno = "PYP_REDACTED"  # type: ignore
+                message = "Possible reconstructed traceback (most recent call last):\n"
+                message += "".join(tb_except.format()).strip("\n")
+                message = message.replace(", line PYP_REDACTED", "")
             except Exception:
-                pass
-            raise PypError(message) from e
+                message = "".join(traceback.format_exception_only(type(e), e)).strip()
+            raise PypError(
+                "Code raised the following exception, consider using --explain to investigate:\n\n"
+                f"{message}"
+            ) from e
 
 
 def parse_options(args: List[str]) -> argparse.Namespace:

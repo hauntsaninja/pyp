@@ -154,21 +154,24 @@ def test_user_error():
     with pytest.raises(pyp.PypError, match="Invalid input"):
         run_pyp("pyp 'x +'")
 
-    pattern = re.compile("Code raised.*ZeroDivisionError.*Possibly.*1 / 0", re.DOTALL)
+    pattern = re.compile("Code raised.*Possible.*1 / 0.*ZeroDivisionError", re.DOTALL)
     with pytest.raises(pyp.PypError, match=pattern):
         run_pyp("pyp '1 / 0'")
 
-    pattern = re.compile("Code raised.*ModuleNotFoundError.*lol.*Possibly.*import lol", re.DOTALL)
+    pattern = re.compile("Code raised.*Possible.*import lol.*ModuleNotFoundError", re.DOTALL)
     with pytest.raises(pyp.PypError, match=pattern):
         run_pyp("pyp 'lol'")
 
+    pyp_error = run_cmd("pyp 'def f(): 1/0' 'f()'", check=False)
     message = lambda x, y: (  # noqa
         "error: Code raised the following exception, consider using --explain to investigate:\n\n"
-        "ZeroDivisionError: division by zero\n\n"
-        "Possibly at:\n"
-        f"output = {x}int(x) / 0{y}\n"
+        "Possible reconstructed traceback (most recent call last):\n"
+        '  File "<pyp>", in <module>\n'
+        "    output = f()\n"
+        '  File "<pyp>", in f\n'
+        f"    {x}1 / 0{y}\n"
+        "ZeroDivisionError: division by zero\n"
     )
-    pyp_error = run_cmd("pyp 'int(x) / 0'", input="1", check=False)
     assert pyp_error == message("(", ")") or pyp_error == message("", "")
 
 
