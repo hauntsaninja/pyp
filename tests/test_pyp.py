@@ -5,6 +5,7 @@ import shlex
 import subprocess
 import sys
 from typing import List, Optional, Union
+from unittest.mock import patch
 
 import pyp
 import pytest
@@ -104,43 +105,6 @@ def run_pyp(cmd: Union[str, List[str]], input: str = "") -> str:
     return output.getvalue()
 
 
-def test_explain():
-    command = [
-        "pyp",
-        "--explain",
-        "-b",
-        "d = defaultdict(list)",
-        "user, pid, *_ = x.split()",
-        "d[user].append(pid)",
-        "-a",
-        'del d["root"]',
-        "-a",
-        "d",
-    ]
-    explain_output = run_pyp(command)
-    script = r"""
-#!/usr/bin/env python3
-from collections import defaultdict
-from pyp import pypprint
-import sys
-d = defaultdict(list)
-for x in sys.stdin:
-    x = x.rstrip('\n')
-    (user, pid, *_) = x.split()
-    d[user].append(pid)
-del d['root']
-if d is not None:
-    pypprint(d)
-"""
-    script = script.lstrip("\n")
-    if sys.version_info < (3, 9):
-        # astunparse seems to parenthesise things slightly differently, so filter through ast to
-        # hackily ensure that the scripts are the same.
-        assert ast.dump(ast.parse(explain_output)) == ast.dump(ast.parse(script))
-    else:
-        assert explain_output == script
-
-
 def test_failures():
     with pytest.raises(pyp.PypError):
         # No possible output
@@ -172,3 +136,92 @@ def test_edge_cases():
     assert run_pyp("pyp 'with contextlib.suppress(): x'", input="a\nb") == "a\nb\n"
     with pytest.raises(pyp.PypError):
         run_pyp("pyp 'if int(x) > 2: int(x)' 'else: int(x) + 1'")
+
+
+def compare_scripts(explain_output: str, script: str) -> None:
+    explain_output = explain_output.strip("\n")
+    script = script.strip("\n")
+    if sys.version_info < (3, 9):
+        # astunparse seems to parenthesise things slightly differently, so filter through ast to
+        # hackily ensure that the scripts are the same.
+        assert ast.dump(ast.parse(explain_output)) == ast.dump(ast.parse(script))
+    else:
+        assert explain_output == script
+
+
+def test_explain():
+    command = [
+        "pyp",
+        "--explain",
+        "-b",
+        "d = defaultdict(list)",
+        "user, pid, *_ = x.split()",
+        "d[user].append(pid)",
+        "-a",
+        'del d["root"]',
+        "-a",
+        "d",
+    ]
+    script = r"""
+#!/usr/bin/env python3
+from collections import defaultdict
+from pyp import pypprint
+import sys
+d = defaultdict(list)
+for x in sys.stdin:
+    x = x.rstrip('\n')
+    (user, pid, *_) = x.split()
+    d[user].append(pid)
+del d['root']
+if d is not None:
+    pypprint(d)
+"""
+    compare_scripts(run_pyp(command), script)
+
+
+@patch("pyp.get_config_contents")
+def test_config_imports(config_mock):
+    config_mock.return_value = """
+import numpy as np
+from scipy.linalg import eigvals
+from contextlib import *
+from typing import *
+    """
+    script1 = """
+#!/usr/bin/env python3
+import sys
+import numpy as np
+np
+for x in sys.stdin:
+    x = x.rstrip('\n')
+    if x is not None:
+        print(x)
+"""
+    compare_scripts(run_pyp(["--explain", "-b", "np", "x"]), script1)
+
+    script2 = """
+#!/usr/bin/env python3
+from pyp import pypprint
+import sys
+import numpy as np
+from scipy.linalg import eigvals
+assert sys.stdin.isatty() or not sys.stdin.read(), 'No candidates found for loop variable or input variable, so assert nothing is piped in'
+output = eigvals(np.array([[0.0, - 1.0], [1.0, 0.0]]))
+if output is not None:
+    pypprint(output)
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "eigvals(np.array([[0., -1.], [1., 0.]]))"]), script2)
+
+    script3 = r"""
+#!/usr/bin/env python3
+from typing import List
+from contextlib import suppress
+import sys
+for x in sys.stdin:
+    x = x.rstrip('\n')
+    y: List = []
+    with suppress():
+        if x is not None:
+            print(x)
+"""
+    compare_scripts(run_pyp(["--explain", "y: List = []", "with suppress(): x"]), script3)
