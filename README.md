@@ -128,6 +128,7 @@ del d['root']
 if d is not None:
     pypprint(d)
 ```
+And if your command hits an exception, pyp will reconstruct a traceback into the generated code.
 
 #### pyp is configurable.
 
