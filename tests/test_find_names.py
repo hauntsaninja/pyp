@@ -87,10 +87,14 @@ def test_args():
     check_find_names(
         "def f(x, y = 0, *z, a, b = 0, **c): ...", {"f", "a", "b", "c", "x", "y", "z"}, set()
     )
+    check_find_names(
+        "async def f(x, y = 0, *z, a, b = 0, **c): ...", {"f", "a", "b", "c", "x", "y", "z"}, set()
+    )
 
 
 def test_definitions():
     check_find_names("def f(): ...", {"f"}, set())
+    check_find_names("async def f(): ...", {"f"}, set())
     check_find_names("def f(): f()", {"f"}, set())
     check_find_names("def f(): g()", {"f"}, {"g"})
     check_find_names("def f(x=g): ...", {"f", "x"}, {"g"})
