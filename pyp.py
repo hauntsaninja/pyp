@@ -419,6 +419,16 @@ class PypTransform:
             )
             self.undefined.remove("pypprint")
 
+        # Optimisation: we will (technically almost) always define sys. However, in order for us to
+        # get to `import sys`, we'll need to examine our wildcard imports, which in the presence
+        # of config, could be slow.
+        if "sys" in self.undefined:
+            self.before_tree.body = [ast.parse("import sys").body[0]] + self.before_tree.body
+            self.undefined.remove("sys")
+        # Now short circuit if we can
+        if not self.undefined:
+            return
+
         def get_names_in_module(module: str) -> Any:
             mod = importlib.import_module(module)
             return getattr(mod, "__all__", dir(mod))
