@@ -1,15 +1,18 @@
 # Changelog
 
-## Unreleased
+## [v0.3]
 
 - pyp is now configurable! See README.md for the details
 - Added CHANGELOG.md
-- Automatic printing now tries a little harder to find standalone expressions to print
-- The output of --script now has a shebang
-- Improved various error messages
-- Input code is now dedent-ed
+- We now attempt to show a reconstructed traceback for errors raised in generated code
+- Improved various error messages. We should never show you tracebacks into pyp code unless it's a
+genuine pyp crash
+- The output of `--script` now has a shebang and orders imports better
 - Improved undefined name detection for imports, exception handlers, class and function definitions
+- Automatic printing now tries a little harder to find standalone expressions to print
+- Input code is now dedent-ed
 - Updated Related Projects in README.md
+- Several improvements to tests
 
 Extra thanks to @rmcgibbo!
 Thanks to @nickodell, @yuvadm, @dbieber, @alendit!
