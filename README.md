@@ -115,6 +115,7 @@ useful starting point for more complex scripts.
 ```
 pyp --explain -b 'd = defaultdict(list)' 'user, pid, *_ = x.split()' 'd[user].append(pid)' -a 'del d["root"]' -a 'd'
 
+#!/usr/bin/env python3
 from collections import defaultdict
 from pyp import pypprint
 import sys
@@ -127,6 +128,42 @@ del d['root']
 if d is not None:
     pypprint(d)
 ```
+
+#### pyp is configurable.
+
+Point the environment variable `PYP_CONFIG_PATH` to a file containing, for example:
+```
+import numpy as np
+import tensorflow as tf
+from pipetools import *
+
+def useful_function(): ...
+class UsefulClass: ...
+```
+
+When attempting to define undefined names, pyp will statically* analyse this file as a source of
+possible definitions. This means that if you don't use `tf`, we won't import `tensorflow`! And of
+course, `--explain` will show you exactly what gets run:
+
+```
+pyp --explain 'np.array([0]); pass'
+
+#!/usr/bin/env python3
+import sys
+import numpy as np
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+np.array([0])
+```
+
+Note, importing things from libraries like [pipetools](https://0101.github.io/pipetools/doc/index.html)
+in your configuration can allow you to achieve high levels of syntax sugar:
+```
+seq 1 110 | pyp 'lines > foreach(int) | where(X > 100) | group_by(X % 3) | sort_by(X[0])'
+```
+
+<sub>\*If you use wildcard imports, we will need to import those modules if there remain undefined
+names, though we skip this in the happy path. If this matters to you, definitely don't
+`from tensorflow import *`! </sub>
 
 ## Related projects
 

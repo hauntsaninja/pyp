@@ -2,14 +2,17 @@
 
 ## Unreleased
 
+- pyp is now configurable! See README.md for the details
 - Added CHANGELOG.md
 - Automatic printing now tries a little harder to find standalone expressions to print
 - The output of --script now has a shebang
-- Mention variable names in error messages
+- Improved various error messages
+- Input code is now dedent-ed
 - Improved undefined name detection for imports, exception handlers, class and function definitions
 - Updated Related Projects in README.md
 
-Thanks to @rmcgibbo and @yuvadm!
+Extra thanks to @rmcgibbo!
+Thanks to @nickodell, @yuvadm, @dbieber, @alendit!
 
 ## [v0.2.1]
 
