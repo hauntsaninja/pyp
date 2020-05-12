@@ -448,7 +448,12 @@ class PypTransform:
             return
 
         def get_names_in_module(module: str) -> Any:
-            mod = importlib.import_module(module)
+            try:
+                mod = importlib.import_module(module)
+            except ImportError as e:
+                raise PypError(
+                    f"Config contains wildcard import from {module}, but it failed to import"
+                ) from e
             return getattr(mod, "__all__", (n for n in dir(mod) if not n.startswith("_")))
 
         wildcard_imports = ["itertools", "math", "collections"] + self.config.wildcard_imports

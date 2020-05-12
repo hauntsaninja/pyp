@@ -312,6 +312,12 @@ def test_config_invalid(config_mock):
     with pytest.raises(pyp.PypError, match="Config has invalid syntax"):
         run_pyp("x")
 
+    config_mock.return_value = "from xyz import *"
+    run_pyp("x")
+    with pytest.raises(pyp.PypError, match="Config.*wildcard import.*xyz.*failed") as e:
+        run_pyp("missing")
+    assert isinstance(e.value.__cause__, ImportError)
+
 
 @patch("pyp.get_config_contents")
 def test_config_shebang(config_mock):
