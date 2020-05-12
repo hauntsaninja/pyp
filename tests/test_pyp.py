@@ -215,8 +215,8 @@ eigvals(np.array([[0.0, - 1.0], [1.0, 0.0]]))
 
     script3 = r"""
 #!/usr/bin/env python3
-from typing import List
 from contextlib import suppress
+from typing import List
 import sys
 for x in sys.stdin:
     x = x.rstrip('\n')

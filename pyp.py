@@ -441,13 +441,13 @@ class PypTransform:
         subimports["pp"] = "pprint"
         subimports["pypprint"] = "pyp"
 
-        def get_import_for_name(name: str) -> ast.stmt:
+        def get_import_for_name(name: str) -> str:
             if name in subimports:
-                return ast.parse(f"from {subimports[name]} import {name}").body[0]
-            return ast.parse(f"import {name}").body[0]
+                return f"from {subimports[name]} import {name}"
+            return f"import {name}"
 
         self.before_tree.body = [
-            get_import_for_name(name) for name in sorted(self.undefined)
+            ast.parse(stmt).body[0] for stmt in sorted(map(get_import_for_name, self.undefined))
         ] + self.before_tree.body
 
     def build(self) -> ast.Module:
