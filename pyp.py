@@ -7,8 +7,9 @@ import itertools
 import os
 import sys
 import textwrap
+import traceback
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 __all__ = ["pypprint"]
 
@@ -111,6 +112,15 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
     return defined, undefined
 
 
+def dfs_walk(node: ast.AST) -> Iterator[ast.AST]:
+    """Helper to iterate over an AST depth-first."""
+    stack = [node]
+    while stack:
+        node = stack.pop()
+        stack.extend(reversed(list(ast.iter_child_nodes(node))))
+        yield node
+
+
 def get_config_contents() -> str:
     """Returns the empty string if no config file is specified."""
     config_file = os.environ.get("PYP_CONFIG_PATH")
@@ -119,8 +129,8 @@ def get_config_contents() -> str:
     try:
         with open(config_file, "r") as f:
             return f.read()
-    except FileNotFoundError:
-        raise PypError(f"Config file not found at PYP_CONFIG_PATH={config_file}")
+    except FileNotFoundError as e:
+        raise PypError(f"Config file not found at PYP_CONFIG_PATH={config_file}") from e
 
 
 class PypError(Exception):
@@ -146,7 +156,7 @@ class PypConfig:
             config_ast = ast.parse(config_contents)
         except SyntaxError as e:
             error = f": {e.text!r}" if e.text else ""
-            raise PypError(f"Config has invalid syntax{error}")
+            raise PypError(f"Config has invalid syntax{error}") from e
 
         # List of config parts
         self.parts: List[ast.stmt] = config_ast.body
@@ -176,11 +186,11 @@ class PypConfig:
                 add_defs(index, {part.name})
                 self.requires[index].update(undefs)
             elif isinstance(part, ast.ImportFrom):
+                if part.module is None:
+                    raise PypError(f"Config has unsupported import on line {part.lineno}")
                 defs, _ = find_names(part)
                 if "*" in defs:
                     defs.remove("*")
-                    if part.module is None:
-                        raise PypError(f"Config has unsupported import on line {part.lineno}")
                     self.wildcard_imports.append(part.module)
                 add_defs(index, defs)
             elif isinstance(part, (ast.Import, ast.Assign, ast.AnnAssign)):
@@ -192,9 +202,12 @@ class PypConfig:
                 for part in getattr(part, "body", []) + getattr(part, "orelse", []):
                     inner(index, part)
             else:
+                node_type = type(
+                    part.value if isinstance(part, ast.Expr) else part
+                ).__name__.lower()
                 raise PypError(
                     "Config only supports a subset of Python at module level; "
-                    f"unsupported construct on line {part.lineno}"
+                    f"unsupported construct ({node_type}) on line {part.lineno}"
                 )
 
         for index, part in enumerate(self.parts):
@@ -220,8 +233,13 @@ class PypTransform:
         define_pypprint: bool,
         config: PypConfig,
     ) -> None:
-        def parse_input(c: List[str]) -> ast.Module:
-            return ast.parse(textwrap.dedent("\n".join(c).strip()))
+        def parse_input(code: List[str]) -> ast.Module:
+            try:
+                return ast.parse(textwrap.dedent("\n".join(code).strip()))
+            except SyntaxError as e:
+                message = traceback.format_exception_only(type(e), e)
+                message[0] = "Invalid input\n\n"
+                raise PypError("".join(message).strip()) from e
 
         self.before_tree = parse_input(before)
         self.tree = parse_input(code)
@@ -459,11 +477,18 @@ class PypTransform:
 
         ret = ast.parse("")
         ret.body = self.before_tree.body + self.tree.body + self.after_tree.body
+        # Add line numbers to the nodes, so we can be more helpful on error
+        i = 0
+        for node in dfs_walk(ret):
+            if isinstance(node, ast.stmt):
+                i += 1
+            node.lineno = i
+
         return ast.fix_missing_locations(ret)
 
 
-def unparse(tree: ast.Module) -> str:
-    """Returns a Python script equivalent to executing ``tree``."""
+def unparse(tree: ast.AST, no_fallback: bool = False) -> str:
+    """Returns Python code equivalent to executing ``tree``."""
     if sys.version_info >= (3, 9):
         return ast.unparse(tree)
     try:
@@ -472,7 +497,8 @@ def unparse(tree: ast.Module) -> str:
         return astunparse.unparse(tree)  # type: ignore
     except ImportError:
         pass
-
+    if no_fallback:
+        raise ImportError
     return f"""
 from ast import *
 tree = fix_missing_locations({ast.dump(tree)})
@@ -491,7 +517,22 @@ def run_pyp(args: argparse.Namespace) -> None:
         print(config.shebang)
         print(unparse(tree))
     else:
-        exec(compile(tree, filename="<ast>", mode="exec"), {})
+        try:
+            exec(compile(tree, filename="<ast>", mode="exec"), {})
+        except Exception as e:
+            message = (
+                "Code raised the following exception, consider using --explain to investigate:\n\n"
+                + "".join(traceback.format_exception_only(type(e), e)).strip()
+            )
+            try:
+                lineno = e.__traceback__.tb_next.tb_lineno  # type: ignore
+                code = unparse(
+                    next(n for n in dfs_walk(tree) if getattr(n, "lineno", -1) == lineno), True
+                ).strip()
+                message += f"\n\nPossibly at:\n{code}"
+            except Exception:
+                pass
+            raise PypError(message) from e
 
 
 def parse_options(args: List[str]) -> argparse.Namespace:
@@ -545,7 +586,7 @@ def main() -> None:
     try:
         run_pyp(parse_options(sys.argv[1:]))
     except PypError as e:
-        print(f"ERROR: {e}", file=sys.stderr)
+        print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
 
 

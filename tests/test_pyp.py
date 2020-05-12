@@ -126,8 +126,9 @@ def test_edge_cases():
     assert run_pyp("pyp 'print(1)'") == "1\n"
 
     assert run_pyp("pyp 'output = 0; 1'") == "1\n"
-    with pytest.raises(ImportError):
+    with pytest.raises(Exception) as e:
         run_pyp("pyp 'output.foo()'")
+    assert isinstance(e.value.__cause__, ImportError)
 
     assert run_pyp("pyp 'pypprint(1); pypprint(1, 2)'") == "1\n1 2\n"
     assert run_pyp("pyp i", input="a\nb") == "0\n1\n"
