@@ -1,20 +1,22 @@
 import ast
 import contextlib
 import io
+import os
 import shlex
 import subprocess
 import sys
-from typing import List, Optional, Union
+import tempfile
+from typing import Dict, List, Optional, Union
 from unittest.mock import patch
 
 import pyp
 import pytest
 
 
-def run_cmd(cmd: str, input: Optional[str] = None) -> bytes:
+def run_cmd(cmd: str, input: Optional[str] = None, env: Optional[Dict[str, str]] = None) -> bytes:
     if isinstance(input, str):
         input = input.encode("utf-8")
-    return subprocess.check_output(cmd, shell=True, input=input)
+    return subprocess.check_output(cmd, shell=True, input=input, env=env)
 
 
 def compare_command(
@@ -186,31 +188,30 @@ import numpy as np
 from scipy.linalg import eigvals
 from contextlib import *
 from typing import *
+
+def smallarray():
+    return np.array([0])
     """
     script1 = """
 #!/usr/bin/env python3
 import sys
 import numpy as np
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
 np
-for x in sys.stdin:
-    x = x.rstrip('\n')
-    if x is not None:
-        print(x)
-"""
-    compare_scripts(run_pyp(["--explain", "-b", "np", "x"]), script1)
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "np; pass"]), script1)
 
     script2 = """
 #!/usr/bin/env python3
-from pyp import pypprint
 import sys
 import numpy as np
 from scipy.linalg import eigvals
 assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
-output = eigvals(np.array([[0.0, - 1.0], [1.0, 0.0]]))
-if output is not None:
-    pypprint(output)
+eigvals(np.array([[0.0, - 1.0], [1.0, 0.0]]))
 """  # noqa
-    compare_scripts(run_pyp(["--explain", "eigvals(np.array([[0., -1.], [1., 0.]]))"]), script2)
+    compare_scripts(
+        run_pyp(["--explain", "eigvals(np.array([[0., -1.], [1., 0.]])); pass"]), script2
+    )
 
     script3 = r"""
 #!/usr/bin/env python3
@@ -225,3 +226,185 @@ for x in sys.stdin:
             print(x)
 """
     compare_scripts(run_pyp(["--explain", "y: List = []", "with suppress(): x"]), script3)
+
+    script4 = """
+#!/usr/bin/env python3
+import sys
+import numpy as np
+
+def smallarray():
+    return np.array([0])
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+smallarray()
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "smallarray(); pass"]), script4)
+
+
+@patch("pyp.get_config_contents")
+def test_config_invalid(config_mock):
+    config_mock.return_value = "import numpy as np\nimport scipy as np"
+    with pytest.raises(pyp.PypError):
+        run_pyp("x")
+
+    config_mock.return_value = "from . import *"
+    with pytest.raises(pyp.PypError):
+        run_pyp("x")
+
+    config_mock.return_value = "f()"
+    with pytest.raises(pyp.PypError):
+        run_pyp("x")
+
+    config_mock.return_value = "1 +"
+    with pytest.raises(pyp.PypError):
+        run_pyp("x")
+
+
+@patch("pyp.get_config_contents")
+def test_config_shebang(config_mock):
+    config_mock.return_value = "#!hello"
+    script = """
+#!hello
+import sys
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "pass"]), script)
+
+
+@patch("pyp.get_config_contents")
+def test_config_scope(config_mock):
+    config_mock.return_value = """
+def f(x): contextlib = 5
+class A:
+    def asyncio(self): ...
+"""
+    script = """
+#!/usr/bin/env python3
+import asyncio
+import contextlib
+import sys
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+contextlib
+asyncio
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "contextlib; asyncio; pass"]), script)
+
+
+@patch("pyp.get_config_contents")
+def test_config_shadow(config_mock):
+    # shadowing a builtin
+    config_mock.return_value = "range = 5"
+    script = """
+#!/usr/bin/env python3
+import sys
+range = 5
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+print(range)
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "print(range)"]), script)
+    # shadowing a magic variable
+    config_mock.return_value = "stdin = 5"
+    script = """
+#!/usr/bin/env python3
+from pyp import pypprint
+import sys
+stdin = sys.stdin
+output = len(stdin)
+if output is not None:
+    pypprint(output)
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "len(stdin)"]), script)
+
+    # shadowed import *
+    config_mock.return_value = "from os.path import *\nfrom shlex import *"
+    assert run_pyp("split.__module__") == "shlex\n"
+
+
+@patch("pyp.get_config_contents")
+def test_config_recursive(config_mock):
+    config_mock.return_value = "def f(x): return g(x)\ndef g(x): return f(x)"
+    script = """
+#!/usr/bin/env python3
+import sys
+
+def f(x):
+    return g(x)
+
+def g(x):
+    return f(x)
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+f(1)
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "f(1); pass"]), script)
+
+
+@patch("pyp.get_config_contents")
+def test_config_conditional(config_mock):
+    config_mock.return_value = """
+import sys
+if sys.version_info < (3, 9):
+    import astunparse
+    unparse = astunparse.unparse
+else:
+    unparse = ast.unparse
+"""
+    script1 = """
+#!/usr/bin/env python3
+import ast
+import sys
+if sys.version_info < (3, 9):
+    import astunparse
+    unparse = astunparse.unparse
+else:
+    unparse = ast.unparse
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+unparse(ast.parse('x'))
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "unparse(ast.parse('x')); pass"]), script1)
+
+    config_mock.return_value = """
+try:
+    import astunparse
+    unparse = astunparse.unparse
+except ImportError:
+    import ast
+    unparse = ast.unparse
+"""
+    script2 = """
+#!/usr/bin/env python3
+import ast
+import sys
+try:
+    import astunparse
+    unparse = astunparse.unparse
+except ImportError:
+    import ast
+    unparse = ast.unparse
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+unparse(ast.parse('x'))
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "unparse(ast.parse('x')); pass"]), script2)
+
+
+def test_config_end_to_end():
+    with tempfile.NamedTemporaryFile("w") as f:
+        env = dict(os.environ, PYP_CONFIG_PATH=f.name)
+        config = """
+def foo():
+    return 1
+"""
+        f.write(config)
+        f.flush()
+        script = """
+#!/usr/bin/env python3
+import sys
+
+def foo():
+    return 1
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+foo()
+"""  # noqa
+        compare_scripts(run_cmd("pyp --explain 'foo(); pass'", env=env).decode("utf-8"), script)
+
+        env = dict(os.environ, PYP_CONFIG_PATH=f.name + "_does_not_exist")
+        with pytest.raises(subprocess.CalledProcessError):
+            run_cmd("pyp x", env=env)
