@@ -333,8 +333,8 @@ class PypTransform:
 
         if not any(possible_vars.values()):
             no_pipe_assertion = ast.parse(
-                "assert sys.stdin.isatty() or not sys.stdin.read(), 'No candidates found for loop "
-                "variable or input variable, so assert nothing is piped in'"
+                "assert sys.stdin.isatty() or not sys.stdin.read(), "
+                '''"The command doesn't process input, but input is present"'''
             )
             self.tree.body = no_pipe_assertion.body + self.tree.body
             self.use_pypprint_for_implicit_print()
