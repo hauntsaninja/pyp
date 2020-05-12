@@ -1,35 +1,81 @@
 import ast
 import contextlib
 import io
-import os
+import re
 import shlex
 import subprocess
 import sys
 import tempfile
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 from unittest.mock import patch
 
 import pyp
 import pytest
 
+# ====================
+# Helpers
+# ====================
 
-def run_cmd(cmd: str, input: Optional[str] = None, env: Optional[Dict[str, str]] = None) -> bytes:
+
+@pytest.fixture(autouse=True)
+def delete_config_env_var(monkeypatch):
+    monkeypatch.delenv("PYP_CONFIG_PATH", raising=False)
+
+
+def run_cmd(cmd: str, input: Optional[str] = None, check: bool = True) -> str:
     if isinstance(input, str):
         input = input.encode("utf-8")
-    return subprocess.check_output(cmd, shell=True, input=input, env=env)
+    proc = subprocess.run(
+        cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=check, input=input
+    )
+    return proc.stdout.decode("utf-8")
+
+
+def run_pyp(cmd: Union[str, List[str]], input: Optional[str] = None) -> str:
+    """Run pyp in process. It's quicker and allows us to mock and so on."""
+    if isinstance(cmd, str):
+        cmd = shlex.split(cmd)
+    if cmd[0] == "pyp":
+        del cmd[0]
+
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        try:
+            old_stdin = sys.stdin
+            sys.stdin = io.StringIO(input)
+            pyp.run_pyp(pyp.parse_options(cmd))
+        finally:
+            sys.stdin = old_stdin
+    return output.getvalue()
 
 
 def compare_command(
-    example_cmd: str, pyp_cmd: str, input: Optional[str] = None, allow_example_fail: bool = False
+    example_cmd: str, pyp_cmd: str, input: Optional[str] = None, use_subprocess: bool = False
 ) -> None:
-    try:
-        example_output = run_cmd(example_cmd, input)
-    except subprocess.CalledProcessError:
-        if allow_example_fail:
-            return
-        raise RuntimeError("Example command failed!")
+    """Compares running command example_cmd with the output of pyp_cmd.
 
-    assert example_output == run_cmd(pyp_cmd, input)
+    ``use_subprocess`` tells us whether to launch pyp via subprocess or not.
+
+    """
+    pyp_output = run_cmd(pyp_cmd, input) if use_subprocess else run_pyp(pyp_cmd, input)
+    assert run_cmd(example_cmd, input) == pyp_output
+
+
+def compare_scripts(explain_output: str, script: str) -> None:
+    """Tests whether two scripts are equivalent."""
+    explain_output = explain_output.strip("\n")
+    script = script.strip("\n")
+    if sys.version_info < (3, 9):
+        # astunparse seems to parenthesise things slightly differently, so filter through ast to
+        # hackily ensure that the scripts are the same.
+        assert pyp.unparse(ast.parse(explain_output)) == pyp.unparse(ast.parse(script))
+    else:
+        assert explain_output == script
+
+
+# ====================
+# Tests
+# ====================
 
 
 def test_examples():
@@ -50,6 +96,7 @@ def test_examples():
         example_cmd="sh",
         pyp_cmd="pyp 'subprocess.run(lines[0], shell=True); pass'",
         input="echo echo",
+        use_subprocess=True,
     )
     compare_command(
         example_cmd="""jq -r '.[1]["lol"]'""",
@@ -63,8 +110,7 @@ def test_examples():
     )
     compare_command(example_cmd="echo 'sqrt(9.0)' | bc", pyp_cmd="pyp 'sqrt(9)'")
     compare_command(
-        example_cmd="x=README.md; echo ${x##*.}",
-        pyp_cmd='''x=README.md; pyp "Path('$x').suffix[1:]"''',
+        example_cmd="x=README.md; echo ${x##*.}", pyp_cmd='''pyp "Path('README.md').suffix[1:]"''',
     )
     compare_command(
         example_cmd="echo '  1 a\n  2 b'", pyp_cmd="""pyp 'f"{idx+1: >3} {x}"'""", input="a\nb"
@@ -89,82 +135,48 @@ def test_examples():
     )
 
 
-def run_pyp(cmd: Union[str, List[str]], input: str = "") -> str:
-    """Run pyp in process. It's quicker and allows us to mock and so on."""
-    if isinstance(cmd, str):
-        cmd = shlex.split(cmd)
-    if cmd[0] == "pyp":
-        del cmd[0]
-
-    output = io.StringIO()
-    with contextlib.redirect_stdout(output):
-        try:
-            old_stdin = sys.stdin
-            sys.stdin = io.StringIO(input)
-            pyp.run_pyp(pyp.parse_options(cmd))
-        finally:
-            sys.stdin = old_stdin
-    return output.getvalue()
-
-
-def test_failures():
-    with pytest.raises(pyp.PypError):
-        # No possible output
+def test_magic_variable_failures():
+    with pytest.raises(pyp.PypError, match="Code doesn't generate any output"):
         run_pyp("pyp 'x = 1'")
-    with pytest.raises(pyp.PypError):
-        # Unclear which transformation
+
+    with pytest.raises(pyp.PypError, match="Candidates found for both"):
         run_pyp("pyp 'print(x); print(len(lines))'")
-    with pytest.raises(pyp.PypError):
-        # Multiple candidates for loop variable
+
+    with pytest.raises(pyp.PypError, match="Multiple candidates for loop"):
         run_pyp("pyp 'print(x); print(s)'")
 
-
-def test_edge_cases():
-    """Tests that hit various edge cases and/or improve coverage."""
-    assert run_pyp("pyp pass") == ""
-    assert run_pyp("pyp '1; pass'") == ""
-    assert run_pyp("pyp 'print(1)'") == "1\n"
-
-    assert run_pyp("pyp 'output = 0; 1'") == "1\n"
-    with pytest.raises(Exception) as e:
-        run_pyp("pyp 'output.foo()'")
-    assert isinstance(e.value.__cause__, ImportError)
-
-    assert run_pyp("pyp 'pypprint(1); pypprint(1, 2)'") == "1\n1 2\n"
-    assert run_pyp("pyp i", input="a\nb") == "0\n1\n"
-    assert run_pyp("pyp --define-pypprint lines", input="a\nb") == "a\nb\n"
-
-    assert run_pyp("pyp 'if int(x) > 2: x'", input="1\n4\n2\n3") == "4\n3\n"
-    assert run_pyp("pyp 'if int(x) > 2:' ' if int(x) < 4: x'", input="1\n4\n2\n3") == "3\n"
-    assert run_pyp("pyp 'with contextlib.suppress(): x'", input="a\nb") == "a\nb\n"
-    with pytest.raises(pyp.PypError):
-        run_pyp("pyp 'if int(x) > 2: int(x)' 'else: int(x) + 1'")
+    with pytest.raises(pyp.PypError, match="Multiple candidates for input"):
+        run_pyp("pyp 'stdin; lines'")
 
 
-def compare_scripts(explain_output: str, script: str) -> None:
-    explain_output = explain_output.strip("\n")
-    script = script.strip("\n")
-    if sys.version_info < (3, 9):
-        # astunparse seems to parenthesise things slightly differently, so filter through ast to
-        # hackily ensure that the scripts are the same.
-        assert ast.dump(ast.parse(explain_output)) == ast.dump(ast.parse(script))
-    else:
-        assert explain_output == script
+def test_user_error():
+    pattern = re.compile("Invalid input.*SyntaxError", re.DOTALL)
+    with pytest.raises(pyp.PypError, match="Invalid input"):
+        run_pyp("pyp 'x +'")
+
+    pattern = re.compile("Code raised.*ZeroDivisionError.*Possibly.*1 / 0", re.DOTALL)
+    with pytest.raises(pyp.PypError, match=pattern):
+        run_pyp("pyp '1 / 0'")
+
+    pattern = re.compile("Code raised.*ModuleNotFoundError.*lol.*Possibly.*import lol", re.DOTALL)
+    with pytest.raises(pyp.PypError, match=pattern):
+        run_pyp("pyp 'lol'")
+
+    message = lambda x, y: (  # noqa
+        "error: Code raised the following exception, consider using --explain to investigate:\n\n"
+        "ZeroDivisionError: division by zero\n\n"
+        "Possibly at:\n"
+        f"output = {x}int(x) / 0{y}\n"
+    )
+    pyp_error = run_cmd("pyp 'int(x) / 0'", input="1", check=False)
+    assert pyp_error == message("(", ")") or pyp_error == message("", "")
 
 
 def test_explain():
-    command = [
-        "pyp",
-        "--explain",
-        "-b",
-        "d = defaultdict(list)",
-        "user, pid, *_ = x.split()",
-        "d[user].append(pid)",
-        "-a",
-        'del d["root"]',
-        "-a",
-        "d",
-    ]
+    command = (
+        "pyp --explain -b 'd = defaultdict(list)' 'user, pid, *_ = x.split()' "
+        """'d[user].append(pid)' -a 'del d["root"]' -a d"""
+    )
     script = r"""
 #!/usr/bin/env python3
 from collections import defaultdict
@@ -182,6 +194,41 @@ if d is not None:
     compare_scripts(run_pyp(command), script)
 
 
+def test_disable_automatic_print():
+    assert run_pyp("pyp pass") == ""
+    assert run_pyp("pyp '1; pass'") == ""
+    assert run_pyp("pyp 'print(1)'") == "1\n"
+    assert run_pyp("pyp 'print(1)'; 2") == "1\n"
+
+
+def test_automatic_print_inside_statement():
+    assert run_pyp("pyp 'if int(x) > 2: x'", input="1\n4\n2\n3") == "4\n3\n"
+    assert run_pyp("pyp 'if int(x) > 2:' ' if int(x) < 4: x'", input="1\n4\n2\n3") == "3\n"
+    assert run_pyp("pyp 'with contextlib.suppress(): x'", input="a\nb") == "a\nb\n"
+    with pytest.raises(pyp.PypError, match="Code doesn't generate any output"):
+        run_pyp("pyp 'if int(x) > 2: int(x)' 'else: int(x) + 1'")
+
+
+def test_pypprint_basic():
+    assert run_pyp("pyp 'pypprint(1); pypprint(1, 2)'") == "1\n1 2\n"
+    assert run_pyp("pyp i", input="a\nb") == "0\n1\n"
+    assert run_pyp("pyp --define-pypprint lines", input="a\nb") == "a\nb\n"
+
+
+def test_get_valid_name():
+    # output is already defined, so we shouldn't print 0
+    assert run_pyp("pyp 'output = 0; 1'") == "1\n"
+    # we shouldn't try to define output, so it should fall through as an automatic import and fail
+    with pytest.raises(Exception) as e:
+        run_pyp("pyp 'output.foo()'")
+    assert isinstance(e.value.__cause__, ImportError)
+
+
+# ====================
+# Config tests
+# ====================
+
+
 @patch("pyp.get_config_contents")
 def test_config_imports(config_mock):
     config_mock.return_value = """
@@ -197,10 +244,11 @@ def smallarray():
 #!/usr/bin/env python3
 import sys
 import numpy as np
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+stdin = sys.stdin
+stdin
 np
-"""  # noqa
-    compare_scripts(run_pyp(["--explain", "np; pass"]), script1)
+"""
+    compare_scripts(run_pyp(["--explain", "stdin; np; pass"]), script1)
 
     script2 = """
 #!/usr/bin/env python3
@@ -235,28 +283,33 @@ import numpy as np
 
 def smallarray():
     return np.array([0])
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+stdin = sys.stdin
+stdin
 smallarray()
-"""  # noqa
-    compare_scripts(run_pyp(["--explain", "smallarray(); pass"]), script4)
+"""
+    compare_scripts(run_pyp(["--explain", "stdin; smallarray(); pass"]), script4)
 
 
 @patch("pyp.get_config_contents")
 def test_config_invalid(config_mock):
     config_mock.return_value = "import numpy as np\nimport scipy as np"
-    with pytest.raises(pyp.PypError):
+    with pytest.raises(pyp.PypError, match="Config has multiple definitions"):
         run_pyp("x")
 
-    config_mock.return_value = "from . import *"
-    with pytest.raises(pyp.PypError):
+    config_mock.return_value = "from . import asdf"
+    with pytest.raises(pyp.PypError, match="Config has unsupported import"):
         run_pyp("x")
 
     config_mock.return_value = "f()"
-    with pytest.raises(pyp.PypError):
+    with pytest.raises(pyp.PypError, match=r"Config.*unsupported construct \(call\)"):
+        run_pyp("x")
+
+    config_mock.return_value = "del x"
+    with pytest.raises(pyp.PypError, match=r"Config.*unsupported construct \(delete\)"):
         run_pyp("x")
 
     config_mock.return_value = "1 +"
-    with pytest.raises(pyp.PypError):
+    with pytest.raises(pyp.PypError, match="Config has invalid syntax"):
         run_pyp("x")
 
 
@@ -266,9 +319,10 @@ def test_config_shebang(config_mock):
     script = """
 #!hello
 import sys
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
-"""  # noqa
-    compare_scripts(run_pyp(["--explain", "pass"]), script)
+stdin = sys.stdin
+stdin
+"""
+    compare_scripts(run_pyp(["--explain", "stdin; pass"]), script)
 
 
 @patch("pyp.get_config_contents")
@@ -292,39 +346,31 @@ class A:
 import asyncio
 import contextlib
 import sys
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+stdin = sys.stdin
+stdin
 contextlib
 asyncio
-"""  # noqa
-    compare_scripts(run_pyp(["--explain", "contextlib; asyncio; pass"]), script)
+"""
+    compare_scripts(run_pyp(["--explain", "stdin; contextlib; asyncio; pass"]), script)
 
 
 @patch("pyp.get_config_contents")
 def test_config_shadow(config_mock):
     # shadowing a builtin
     config_mock.return_value = "range = 5"
-    script = """
-#!/usr/bin/env python3
-import sys
-range = 5
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
-print(range)
-"""  # noqa
-    compare_scripts(run_pyp(["--explain", "print(range)"]), script)
+    assert run_pyp("print(range)") == "5\n"
+
     # shadowing a magic variable
     config_mock.return_value = "stdin = 5"
-    script = """
-#!/usr/bin/env python3
-from pyp import pypprint
-import sys
-stdin = sys.stdin
-output = len(stdin)
-if output is not None:
-    pypprint(output)
-"""  # noqa
-    compare_scripts(run_pyp(["--explain", "len(stdin)"]), script)
+    assert run_pyp("type(stdin).__name__") == "StringIO\n"
+    config_mock.return_value = "x = 8"
+    assert run_pyp("x") == ""
 
-    # shadowed import *
+    # shadowing a wildcard import
+    config_mock.return_value = "from typing import *\nList = 5"
+    assert run_pyp("List") == "5\n"
+
+    # shadowing another wildcard import
     config_mock.return_value = "from os.path import *\nfrom shlex import *"
     assert run_pyp("split.__module__") == "shlex\n"
 
@@ -341,80 +387,61 @@ def f(x):
 
 def g(x):
     return f(x)
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+stdin = sys.stdin
+stdin
 f(1)
-"""  # noqa
-    compare_scripts(run_pyp(["--explain", "f(1); pass"]), script)
+"""
+    compare_scripts(run_pyp(["--explain", "stdin; f(1); pass"]), script)
 
 
 @patch("pyp.get_config_contents")
 def test_config_conditional(config_mock):
-    config_mock.return_value = """
-import sys
+    if_block = """\
 if sys.version_info < (3, 9):
     import astunparse
     unparse = astunparse.unparse
 else:
-    unparse = ast.unparse
+    unparse = ast.unparse\
 """
-    script1 = """
+    config_mock.return_value = f"import sys\n{if_block}"
+    script1 = f"""
 #!/usr/bin/env python3
 import ast
 import sys
-if sys.version_info < (3, 9):
-    import astunparse
-    unparse = astunparse.unparse
-else:
-    unparse = ast.unparse
+{if_block}
 assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
 unparse(ast.parse('x'))
 """  # noqa
     compare_scripts(run_pyp(["--explain", "unparse(ast.parse('x')); pass"]), script1)
 
-    config_mock.return_value = """
+    except_block = """\
 try:
     import astunparse
     unparse = astunparse.unparse
 except ImportError:
     import ast
-    unparse = ast.unparse
+    unparse = ast.unparse\
 """
-    script2 = """
+    config_mock.return_value = except_block
+    script2 = f"""
 #!/usr/bin/env python3
 import ast
 import sys
-try:
-    import astunparse
-    unparse = astunparse.unparse
-except ImportError:
-    import ast
-    unparse = ast.unparse
+{except_block}
 assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
 unparse(ast.parse('x'))
 """  # noqa
     compare_scripts(run_pyp(["--explain", "unparse(ast.parse('x')); pass"]), script2)
 
 
-def test_config_end_to_end():
+def test_config_end_to_end(monkeypatch):
     with tempfile.NamedTemporaryFile("w") as f:
-        env = dict(os.environ, PYP_CONFIG_PATH=f.name)
-        config = """
-def foo():
-    return 1
-"""
+        monkeypatch.setenv("PYP_CONFIG_PATH", f.name)
+        config = "def foo(): return 1"
         f.write(config)
         f.flush()
-        script = """
-#!/usr/bin/env python3
-import sys
+        assert run_pyp("foo()") == "1\n"
 
-def foo():
-    return 1
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
-foo()
-"""  # noqa
-        compare_scripts(run_cmd("pyp --explain 'foo(); pass'", env=env).decode("utf-8"), script)
-
-        env = dict(os.environ, PYP_CONFIG_PATH=f.name + "_does_not_exist")
-        with pytest.raises(subprocess.CalledProcessError):
-            run_cmd("pyp x", env=env)
+        monkeypatch.setenv("PYP_CONFIG_PATH", f.name + "_does_not_exist")
+        with pytest.raises(pyp.PypError, match=f"Config file not found.*{f.name}"):
+            run_pyp("foo()")
