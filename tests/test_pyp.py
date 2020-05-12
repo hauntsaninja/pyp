@@ -180,8 +180,8 @@ def test_explain():
     script = r"""
 #!/usr/bin/env python3
 from collections import defaultdict
-from pyp import pypprint
 import sys
+from pyp import pypprint
 d = defaultdict(list)
 for x in sys.stdin:
     x = x.rstrip('\n')
@@ -337,6 +337,7 @@ def test_config_lazy_wildcard_import(config_mock):
     config_mock.return_value = "from this import *"
     assert run_pyp("pass") == ""  # not imported
     assert run_pyp("x[:3]") == ""  # not imported
+    assert run_pyp("lines") == ""  # not imported
     assert "Zen of Python" in run_pyp("asyncio")  # imported
 
 

@@ -430,18 +430,17 @@ class PypTransform:
         """Modifies the AST to import undefined names."""
         self.undefined -= set(dir(__import__("builtins")))
 
-        if self.define_pypprint and "pypprint" in self.undefined:
-            # Add the definition of pypprint to the AST
-            self.before_tree.body = (
-                ast.parse(inspect.getsource(pypprint)).body + self.before_tree.body
-            )
-            self.undefined.remove("pypprint")
-
-        # Optimisation: we will (technically almost) always define sys. However, in order for us to
+        # Optimisation: we will almost always define sys and pypprint. However, in order for us to
         # get to `import sys`, we'll need to examine our wildcard imports, which in the presence
         # of config, could be slow.
+        if "pypprint" in self.undefined:
+            pypprint_def = (
+                inspect.getsource(pypprint) if self.define_pypprint else "from pyp import pypprint"
+            )
+            self.before_tree.body = ast.parse(pypprint_def).body + self.before_tree.body
+            self.undefined.remove("pypprint")
         if "sys" in self.undefined:
-            self.before_tree.body = [ast.parse("import sys").body[0]] + self.before_tree.body
+            self.before_tree.body = ast.parse("import sys").body + self.before_tree.body
             self.undefined.remove("sys")
         # Now short circuit if we can
         if not self.undefined:
@@ -452,17 +451,15 @@ class PypTransform:
                 mod = importlib.import_module(module)
             except ImportError as e:
                 raise PypError(
-                    f"Config contains wildcard import from {module}, but it failed to import"
+                    f"Config contains wildcard import from {module}, but {module} failed to import"
                 ) from e
             return getattr(mod, "__all__", (n for n in dir(mod) if not n.startswith("_")))
 
+        subimports = {"Path": "pathlib", "pp": "pprint"}
         wildcard_imports = ["itertools", "math", "collections"] + self.config.wildcard_imports
-        subimports = {
-            name: module for module in wildcard_imports for name in get_names_in_module(module)
-        }
-        subimports["Path"] = "pathlib"
-        subimports["pp"] = "pprint"
-        subimports["pypprint"] = "pyp"
+        subimports.update(
+            {name: module for module in wildcard_imports for name in get_names_in_module(module)}
+        )
 
         def get_import_for_name(name: str) -> str:
             if name in subimports:
