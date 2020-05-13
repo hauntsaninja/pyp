@@ -26,7 +26,7 @@ for many common shell utilities. For a cheatsheet / tldr, run `pyp --help`.
 #### pyp can easily be used to apply Python code to each line in the input.
 Just use one of the magic variables `x`, `l`, `s` or `line` to refer to the current line.
 
-```
+```sh
 # pyp like cut
 ls | pyp 'x[:3]'
 ps x | pyp 'line.split()[4]'
@@ -35,7 +35,7 @@ ps x | pyp 'line.split()[4]'
 #### pyp can be used to easily apply Python code to the entire input as well.
 Use the magic variable `lines` for a list of rstripped lines or `stdin` for `sys.stdin`.
 
-```
+```sh
 # pyp like wc -c
 cat /usr/share/dict/words | pyp 'len(stdin.read())'
 
@@ -45,7 +45,7 @@ seq 1 5 | pyp 'sum(map(int, lines))'
 
 #### pyp will automatically import modules you use.
 
-```
+```sh
 # pyp like sh
 echo echo echo | pyp 'subprocess.run(lines[0], shell=True); pass'
 
@@ -58,7 +58,7 @@ cat /usr/share/dict/words | pyp 'x if re.search("(p|m)yth", x) else None'
 
 For `collections`, `math`, `itertools`, `pathlib.Path`, `pprint.pp`, pyp will figure it out even
 if you don't use the qualified name.
-```
+```sh
 # pyp like bc
 pyp 'sqrt(5)'
 
@@ -68,7 +68,7 @@ ls | pyp 'Path(x).suffix'
 
 #### pyp can give you access to loop indices using the magic variables `i`, `idx` or `index`.
 
-```
+```sh
 # pyp like line numbers
 cat setup.py | pyp 'f"{idx+1: >3} {x}"'
 ```
@@ -77,7 +77,7 @@ cat setup.py | pyp 'f"{idx+1: >3} {x}"'
 By default, pyp will print the last expression in your code — except if it evaluates to `None`.
 And you can always explicitly call `print` yourself, in which case pyp will stay out of your way.
 
-```
+```sh
 # pyp like grep
 cat /usr/share/dict/words | pyp 'x if "python" in x else None'
 cat /usr/share/dict/words | pyp 'if "python" in x: print(x); "this won't print"'
@@ -88,7 +88,7 @@ This makes the output of pyp easier to compose with shell tools.
 Again, explicit printing will stop this magic, but pyp makes the function `pypprint` available if
 you do want to explicitly opt back in.
 
-```
+```sh
 # pyp like tail
 ls | pyp 'lines[-10:]'
 
@@ -104,7 +104,7 @@ ls | pyp 'sorted(set(lines))'
 Note if you run into trouble with semicolons and want a new line, you can just pass another string
 to pyp. You can also always pipe pyp to pyp!
 
-```
+```sh
 # pyp like anything!
 ps aux | pyp -b 'd = defaultdict(list)' 'user, pid, *_ = x.split()' 'd[user].append(pid)' -a 'del d["root"]' -a 'd'
 ```
@@ -112,9 +112,10 @@ ps aux | pyp -b 'd = defaultdict(list)' 'user, pid, *_ = x.split()' 'd[user].app
 #### pyp can be magical, but it doesn't have to be mysterious!
 Use `--explain` or `--script` to get a script equivalent to what pyp will run. This can also be a
 useful starting point for more complex scripts.
-```
+```sh
 pyp --explain -b 'd = defaultdict(list)' 'user, pid, *_ = x.split()' 'd[user].append(pid)' -a 'del d["root"]' -a 'd'
-
+```
+```py
 #!/usr/bin/env python3
 from collections import defaultdict
 from pyp import pypprint
@@ -133,7 +134,7 @@ And if your command hits an exception, pyp will reconstruct a traceback into the
 #### pyp is configurable.
 
 Point the environment variable `PYP_CONFIG_PATH` to a file containing, for example:
-```
+```py
 import numpy as np
 import tensorflow as tf
 from pipetools import *
@@ -148,9 +149,10 @@ When attempting to define undefined names, pyp will statically* analyse this fil
 possible definitions. This means that if you don't use `tf`, we won't import `tensorflow`! And of
 course, `--explain` will show you exactly what gets run (and what doesn't!):
 
-```
+```sh
 pyp --explain 'print(p95(list(map(float, stdin))))'
-
+```
+```py
 #!/usr/bin/env python3
 import sys
 import numpy as np
@@ -163,7 +165,7 @@ print(p95(list(map(float, stdin))))
 
 Note, importing things from libraries like [pipetools](https://0101.github.io/pipetools/doc/index.html)
 in your configuration can allow you to achieve high levels of syntax sugar:
-```
+```sh
 seq 1 110 | pyp 'lines > foreach(int) | where(X > 100) | group_by(X % 3) | sort_by(X[0])'
 ```
 
