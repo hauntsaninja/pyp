@@ -56,10 +56,21 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
         def generic_visit(self, node: ast.AST) -> None:
             # Adapted from ast.NodeVisitor.generic_visit, but re-orders traversal a little
             def order(f_v: Tuple[str, Any]) -> int:
-                return {"generators": -2, "iter": -2, "value": -1}.get(f_v[0], 0)
+                # This ordering fixes comprehensions, loops, assignments
+                ordering = {"generators": -2, "iter": -2, "value": -1}
+                name = 0  # Use stable sort order for ExceptHandler. Alias is special cased below
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    name = -1  # Functions are okay with recursion
+                if isinstance(node, ast.ClassDef):
+                    name = 1  # Classes are not okay with self reference
+                ordering.update({"decorator_list": -2, "name": name})
+                return ordering.get(f_v[0], 0)
 
             for _field, value in sorted(ast.iter_fields(node), key=order):
-                if isinstance(value, list):
+                if _field == "name":
+                    if value is not None:  # ExceptHandler's name can be None
+                        defined.add(value)
+                elif isinstance(value, list):
                     for item in value:
                         if isinstance(item, ast.AST):
                             self.visit(item)
@@ -88,25 +99,9 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
 
         def visit_alias(self, node: ast.alias) -> None:
             # Mark imports as defined
+            # Note that we don't generic_visit here, since a) we're a terminal node and b) alias
+            # has a name field but we don't necessarily want to define that name, as seen below
             defined.add(node.asname if node.asname is not None else node.name)
-            self.generic_visit(node)
-
-        def visit_ClassDef(self, node: ast.ClassDef) -> None:
-            self.generic_visit(node)
-            defined.add(node.name)
-
-        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-            defined.add(node.name)
-            self.generic_visit(node)
-
-        def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-            defined.add(node.name)
-            self.generic_visit(node)
-
-        def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
-            if node.name:
-                defined.add(node.name)
-            self.generic_visit(node)
 
     _Finder().visit(tree)
     return defined, undefined

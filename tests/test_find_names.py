@@ -38,6 +38,7 @@ def test_weird_assignments():
 
 
 def test_more_control_flow():
+    check_find_names("try: x = 1\nexcept: pass", {"x"}, set())
     check_find_names("try: x = 1\nexcept: x", {"x"}, set())
     check_find_names("try: x = 1\nexcept: y", {"x"}, {"y"})
     check_find_names("try: x = 1\nexcept: y\nfinally: x", {"x"}, {"y"})
@@ -45,10 +46,12 @@ def test_more_control_flow():
     check_find_names(
         "try: x\nexcept Exception as e: z = e\nfinally: y", {"e", "z"}, {"Exception", "x", "y"}
     )
+    check_find_names("try: ...\nexcept e as e: ...", {"e"}, {"e"})
     check_find_names("with a as x: x", {"x"}, {"a"})
     check_find_names("with a as x, b as y: x", {"x", "y"}, {"a", "b"})
     check_find_names("with a as b, b as c: c", {"b", "c"}, {"a"})
     check_find_names("with a as c, b as c: c", {"c"}, {"a", "b"})
+    check_find_names("with a as a: a", {"a"}, {"a"})
 
 
 def test_import():
@@ -67,6 +70,7 @@ def test_walrus():
     check_find_names("(y for x in xx if (y := x) == 'foo')", {"x", "y"}, {"xx"})
     check_find_names("x: (x := 1) = 2", {"x"}, set())
     check_find_names("f'{(x := 1)} {x}'", {"x"}, set())
+    check_find_names("class A((A := object)): ...", {"A"}, {"object"})
 
 
 def test_comprehensions():
@@ -94,14 +98,21 @@ def test_args():
 
 def test_definitions():
     check_find_names("def f(): ...", {"f"}, set())
+    check_find_names("def f(): x", {"f"}, {"x"})
     check_find_names("async def f(): ...", {"f"}, set())
     check_find_names("def f(): f()", {"f"}, set())
     check_find_names("def f(): g()", {"f"}, {"g"})
     check_find_names("def f(x=g): ...", {"f", "x"}, {"g"})
     check_find_names("def f(x=f): ...", {"f", "x"}, set())
+    check_find_names("@f\ndef f(): ...", {"f"}, {"f"})
+    check_find_names("@f\ndef g(): f = 1", {"f", "g"}, {"f"})
     check_find_names("class A: ...", {"A"}, set())
     check_find_names("class A(B): ...", {"A"}, {"B"})
     check_find_names("class A(A): ...", {"A"}, {"A"})
+    check_find_names("class A(A): A = 1", {"A"}, {"A"})
+    check_find_names("class A: A", {"A"}, {"A"})
+    check_find_names("@A\nclass A: ...", {"A"}, {"A"})
+    check_find_names("@A\nclass B: A = 1", {"A", "B"}, {"A"})
 
 
 @pytest.mark.xfail(reason="do not currently support scopes")
