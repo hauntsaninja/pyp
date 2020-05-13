@@ -59,11 +59,13 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
                 # This ordering fixes comprehensions, loops, assignments
                 ordering = {"generators": -2, "iter": -2, "value": -1}
                 name = 0  # Use stable sort order for ExceptHandler. Alias is special cased below
+                args = 0
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     name = -1  # Functions are okay with recursion
+                    args = -2  # but not with self reference while defining default values
                 if isinstance(node, ast.ClassDef):
                     name = 1  # Classes are not okay with self reference
-                ordering.update({"decorator_list": -2, "name": name})
+                ordering.update({"decorator_list": -3, "name": name, "args": args})
                 return ordering.get(f_v[0], 0)
 
             for _field, value in sorted(ast.iter_fields(node), key=order):
