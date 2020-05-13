@@ -110,7 +110,7 @@ ps aux | pyp -b 'd = defaultdict(list)' 'user, pid, *_ = x.split()' 'd[user].app
 ```
 
 #### pyp can be magical, but it doesn't have to be mysterious!
-Use `--explain` or `--script` to get a script equivalent to what pyp will run. This can also be a
+Use `--explain` or `--script` and pyp will output a script equivalent to what it would run. This can also serve as a
 useful starting point for more complex scripts.
 ```sh
 pyp --explain -b 'd = defaultdict(list)' 'user, pid, *_ = x.split()' 'd[user].append(pid)' -a 'del d["root"]' -a 'd'
@@ -147,7 +147,7 @@ class PotentiallyUsefulClass: ...
 
 When attempting to define undefined names, pyp will statically* analyse this file as a source of
 possible definitions. This means that if you don't use `tf`, we won't import `tensorflow`! And of
-course, `--explain` will show you exactly what gets run (and what doesn't!):
+course, `--explain` will show you exactly what gets run (and hence what doesn't!):
 
 ```sh
 pyp --explain 'print(p95(list(map(float, stdin))))'
