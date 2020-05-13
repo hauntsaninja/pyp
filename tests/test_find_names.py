@@ -1,4 +1,5 @@
 import ast
+import re
 import sys
 from typing import Set
 
@@ -6,8 +7,34 @@ import pytest
 from pyp import find_names
 
 
-def check_find_names(code: str, defined: Set[str], undefined: Set[str]) -> None:
+def check_find_names(
+    code: str, defined: Set[str], undefined: Set[str], confirm: bool = True
+) -> None:
     assert (defined, undefined) == find_names(ast.parse(code))
+
+    if not confirm:
+        return
+
+    exec_locals = {}
+    actually_undefined = undefined - set(dir(__import__("builtins")))
+    if actually_undefined:
+        # If something is actually undefined, we should raise a NameError when we execute
+        # (if we hit another exception first, we fix the test!)
+        with pytest.raises(NameError) as e:
+            exec(code, exec_locals)
+        assert re.search(r"name '(\w+)' is not", e.value.args[0]).group(1) in actually_undefined
+    else:
+        try:
+            exec(code, exec_locals)
+        except Exception as e:
+            # Unlike above, allow this code to fail, but if it fails, it shouldn't be a NameError!
+            assert not isinstance(e, NameError)
+
+    exec_locals = set(exec_locals)
+    exec_locals -= {"__builtins__", "__annotations__"}
+    # In general, we over define things, because we don't deal with scopes and such. So just check
+    # a subset relationship holds, we could tighten this check in the future.
+    assert exec_locals <= defined
 
 
 def test_basic():
@@ -38,15 +65,24 @@ def test_weird_assignments():
 
 
 def test_more_control_flow():
+    check_find_names("try: ...\nexcept: ...", set(), set())
+    check_find_names("try: raise\nexcept Exception as e: ...", {"e"}, {"Exception"})
+    check_find_names("try: raise\nexcept e as e: ...", {"e"}, {"e"})
     check_find_names("try: x = 1\nexcept: pass", {"x"}, set())
-    check_find_names("try: x = 1\nexcept: x", {"x"}, set())
-    check_find_names("try: x = 1\nexcept: y", {"x"}, {"y"})
-    check_find_names("try: x = 1\nexcept: y\nfinally: x", {"x"}, {"y"})
+
+    # with and without confirm for readability, since we need to raise to hit branches
+    check_find_names("try: x = 1\nexcept: x", {"x"}, set(), confirm=False)
+    check_find_names("try:\n x = 1\n raise\nexcept: x", {"x"}, set())
+    check_find_names("try: x = 1\nexcept: y", {"x"}, {"y"}, confirm=False)
+    check_find_names("try:\n x = 1\n raise\nexcept: y", {"x"}, {"y"})
+    check_find_names("try: x = 1\nexcept: y\nfinally: x", {"x"}, {"y"}, confirm=False)
+    check_find_names("try:\n x = 1\n raise\nexcept: y\nfinally: x", {"x"}, {"y"})
+
     check_find_names("try: x = 1\nexcept: y\nfinally: z", {"x"}, {"y", "z"})
+    check_find_names("try: x\nexcept ValueError as e: z = e", {"e", "z"}, {"ValueError", "x"})
     check_find_names(
         "try: x\nexcept Exception as e: z = e\nfinally: y", {"e", "z"}, {"Exception", "x", "y"}
     )
-    check_find_names("try: ...\nexcept e as e: ...", {"e"}, {"e"})
     check_find_names("with a as x: x", {"x"}, {"a"})
     check_find_names("with a as x, b as y: x", {"x", "y"}, {"a", "b"})
     check_find_names("with a as b, b as c: c", {"b", "c"}, {"a"})
@@ -85,9 +121,9 @@ def test_comprehensions():
 
 
 def test_args():
-    check_find_names("f = lambda: x", {"f"}, {"x"})
-    check_find_names("f = lambda x: x", {"f", "x"}, set())
-    check_find_names("f = lambda x: y", {"f", "x"}, {"y"})
+    check_find_names("f = lambda: x\nf()", {"f"}, {"x"})
+    check_find_names("f = lambda x: x\nf()", {"f", "x"}, set())
+    check_find_names("f = lambda x: y\nf(1)", {"f", "x"}, {"y"})
     check_find_names(
         "def f(x, y = 0, *z, a, b = 0, **c): ...", {"f", "a", "b", "c", "x", "y", "z"}, set()
     )
@@ -98,12 +134,12 @@ def test_args():
 
 def test_definitions():
     check_find_names("def f(): ...", {"f"}, set())
-    check_find_names("def f(): x", {"f"}, {"x"})
+    check_find_names("def f(): x\nf()", {"f"}, {"x"})
     check_find_names("async def f(): ...", {"f"}, set())
     check_find_names("def f(): f()", {"f"}, set())
-    check_find_names("def f(): g()", {"f"}, {"g"})
+    check_find_names("def f(): g()\nf()", {"f"}, {"g"})
     check_find_names("def f(x=g): ...", {"f", "x"}, {"g"})
-    check_find_names("def f(x=f): ...", {"f", "x"}, set())
+    check_find_names("def f(x=f): ...", {"f", "x"}, {"f"})
     check_find_names("@f\ndef f(): ...", {"f"}, {"f"})
     check_find_names("@f\ndef g(): f = 1", {"f", "g"}, {"f"})
     check_find_names("class A: ...", {"A"}, set())
