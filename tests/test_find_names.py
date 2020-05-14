@@ -100,7 +100,10 @@ def test_import():
 
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python 3.8 or later")
 def test_walrus():
+    check_find_names("(x := 1)", {"x"}, set())
+    check_find_names("x = (x := 1)", {"x"}, set())
     check_find_names("(x := x)", {"x"}, {"x"})
+    check_find_names("x += (x := 1)", {"x"}, {"x"})
     check_find_names("f((f := lambda x: x))", {"f", "x"}, {"f"})
     check_find_names("if (x := 1): print(x)", {"x"}, {"print"})
     check_find_names("(y for x in xx if (y := x) == 'foo')", {"x", "y"}, {"xx"})

@@ -41,8 +41,11 @@ def pypprint(*args, **kwargs):  # type: ignore
 def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
     """Returns a tuple of defined and undefined names in the given AST.
 
-    A defined name is any name that is stored to (or is a function argument).
+    A defined name is any name that is stored to (approximately*).
     An undefined name is any name that is loaded before it is defined.
+
+    [*] The details are below in code, but imports, function and class definitions, function
+    arguments and exception handlers also define names for our purposes.
 
     Note that we ignore deletes and scopes. Our notion of definition is very simplistic; once
     something is defined, it's never undefined. This is an okay approximation for our use case.
@@ -54,11 +57,12 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
 
     class _Finder(ast.NodeVisitor):
         def generic_visit(self, node: ast.AST) -> None:
-            # Adapted from ast.NodeVisitor.generic_visit, but re-orders traversal a little
             def order(f_v: Tuple[str, Any]) -> int:
                 # This ordering fixes comprehensions, loops, assignments
                 ordering = {"generators": -2, "iter": -2, "value": -1}
-                name = 0  # Use stable sort order for ExceptHandler. Alias is special cased below
+                # name is used in (Async)FunctionDef, ClassDef, ExceptHandler, alias
+                # Stable sort order works for ExceptHandler and alias is special cased below
+                name = 0
                 args = 0
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     name = -1  # Functions are okay with recursion
@@ -68,9 +72,12 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
                 ordering.update({"decorator_list": -3, "name": name, "args": args})
                 return ordering.get(f_v[0], 0)
 
+            # Adapted from ast.NodeVisitor.generic_visit, but re-orders traversal a little using
+            # ``order`` and adds name fields to defined (except for alias.name)
             for _field, value in sorted(ast.iter_fields(node), key=order):
                 if _field == "name":
                     if value is not None:  # ExceptHandler's name can be None
+                        # Mark names as defined, see docstring and comments in ``order``
                         defined.add(value)
                 elif isinstance(value, list):
                     for item in value:
@@ -100,9 +107,9 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
             self.generic_visit(node)
 
         def visit_alias(self, node: ast.alias) -> None:
-            # Mark imports as defined
-            # Note that we don't generic_visit here, since a) we're a terminal node and b) alias
-            # has a name field but we don't necessarily want to define that name, as seen below
+            # Mark imports as defined, see docstring
+            # Note that we don't generic_visit here, since a) alias has a name field but we don't
+            # necessarily want to define that name, as seen below, b) we're a terminal node
             defined.add(node.asname if node.asname is not None else node.name)
 
     _Finder().visit(tree)
