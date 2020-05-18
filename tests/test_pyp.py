@@ -159,7 +159,9 @@ def test_user_error():
     with pytest.raises(pyp.PypError, match=pattern):
         run_pyp("pyp '1 / 0'")
 
-    pattern = re.compile("Code raised.*Possible.*import lol.*ModuleNotFoundError", re.DOTALL)
+    pattern = re.compile(
+        "Code raised.*forgot.*PYP_CONFIG_PATH.*Possible.*import lol.*ModuleNotFoundError", re.DOTALL
+    )
     with pytest.raises(pyp.PypError, match=pattern):
         run_pyp("pyp 'lol'")
 

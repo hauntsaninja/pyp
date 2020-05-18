@@ -544,6 +544,12 @@ def run_pyp(args: argparse.Namespace) -> None:
                 message = message.replace(", line PYP_REDACTED", "")
             except Exception:
                 message = "".join(traceback.format_exception_only(type(e), e)).strip()
+            if isinstance(e, ModuleNotFoundError):
+                message = (
+                    "Note pyp treats undefined names as modules to automatically import. Perhaps "
+                    "you forgot to define something or PYP_CONFIG_PATH is set incorrectly?\n\n"
+                    + message
+                )
             raise PypError(
                 "Code raised the following exception, consider using --explain to investigate:\n\n"
                 f"{message}"
