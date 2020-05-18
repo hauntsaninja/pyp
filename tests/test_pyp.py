@@ -284,7 +284,7 @@ import sys
 import numpy as np
 from scipy.linalg import eigvals
 assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
-eigvals(np.array([[0.0, - 1.0], [1.0, 0.0]]))
+eigvals(np.array([[0.0, -1.0], [1.0, 0.0]]))
 """  # noqa
     compare_scripts(
         run_pyp(["--explain", "eigvals(np.array([[0., -1.], [1., 0.]])); pass"]), script2
