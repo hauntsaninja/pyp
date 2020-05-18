@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.3.1]
+
+- Improved error messages resulting from failed automatic imports
+- Improved undefined name detection for some pathological cases
+
 ## [v0.3]
 
 - pyp is now configurable! See README.md for the details
