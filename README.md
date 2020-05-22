@@ -80,7 +80,7 @@ And you can always explicitly call `print` yourself, in which case pyp will stay
 ```sh
 # pyp like grep
 cat /usr/share/dict/words | pyp 'x if "python" in x else None'
-cat /usr/share/dict/words | pyp 'if "python" in x: print(x); "this won't print"'
+cat /usr/share/dict/words | pyp 'if "python" in x: print(x); "this will not be printed"'
 ```
 
 #### pyp will attempt to intelligently print dicts and iterables.
