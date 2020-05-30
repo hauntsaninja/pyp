@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+Thanks to @piec!
+
 ## [v0.3.1]
 
 - Improved error messages resulting from failed automatic imports
