@@ -101,8 +101,8 @@ ls | pyp 'sorted(set(lines))'
 ```
 
 #### pyp lets you run snippets of Python before and after processing input.
-Note if you run into trouble with semicolons and want a new line, you can just pass another string
-to pyp. You can also always pipe pyp to pyp!
+Note if you run into trouble with semicolons and want a new line (without using a multiline string
+in your shell), you can just pass another string to pyp. You can also always pipe pyp to pyp!
 
 ```sh
 # pyp like anything!
@@ -172,6 +172,11 @@ seq 1 110 | pyp 'lines > foreach(int) | where(X > 100) | group_by(X % 3) | sort_
 <sub>\*If you use wildcard imports, we will need to import those modules if there remain undefined
 names, though we skip this in the happy path. If this matters to you, definitely don't
 `from tensorflow import *` in your config! </sub>
+
+#### I have questions!
+
+There's additional documentation and examples at [FAQ](https://github.com/hauntsaninja/pyp/blob/master/FAQ.md).
+If that doesn't answer your question, please open an issue!
 
 ## Related projects
 
