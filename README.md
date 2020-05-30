@@ -215,15 +215,15 @@ For whatever it's worth, I've listed these projects in approximate order of my p
 
 ### [mario](https://github.com/python-mario/mario)
 
-`mario` is a featureful take on shell processing with Python. It doesn't use undefined name detection,
-instead relying on a pluggable subcommand system. While the subcommands can mean a little more
-verbosity than pyp, `mario` makes up some ground by automatic application of functions and a custom
+`mario` is a featureful take on shell processing with Python. It doesn't use undefined name
+detection, instead relying on a pluggable subcommand system. While the subcommands can be more
+verbose than pyp, `mario` makes up some ground by automatic application of functions and a custom
 command chaining syntax. The result can feel a little DSL-like, while pyp tries to feel very close
 to writing Python.
 
 Consider using `mario` if:
 - You find yourself stringing together long sequences of pyp commands and want to be able to
-command chain within a single process.
+command chain within a single process out of the box.
 - You find yourself often needing to reuse complex pyp commands or doing a lot of domain specific
 shell processing that you wish you could reuse with a single command.
 - You want more builtin support for things like processing CSV or TOML.
@@ -233,8 +233,9 @@ Consider pyp if:
 - You want to minimise keystrokes for things that should be quick and easy.
 - You want something minimal and lightweight that feels very close to Python. You don't want to have
 to remember commands.
-- You're happy using Python modules to do domain specific heavy lifting. You don't mind (or want to
-be able to) fall back to a script via `--script` to deal with complexity.
+- You're happy using Python libraries to do domain specific heavy lifting, for easy command chaining
+or syntax sugar. You don't mind (or want to be able to) fall back to a script via `--script` to deal
+with complexity.
 
 ### [xonsh](https://xon.sh/)
 
