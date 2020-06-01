@@ -36,7 +36,6 @@ Using an ANSI C-quoted string:
 $ pyp --explain $'if int(x) >= 100:\n  x += " is big"\n  print(x)\nelse:\n  print(x + " is small")'
 ```
 
-
 #### What are pyp's dependencies?
 
 If run on Python 3.9 or later, pyp has no dependencies.
@@ -46,6 +45,11 @@ for `--explain`/`--script` to work as promised. Note you can use `pyp.py` as a P
 installing `astunparse` and everything else will work. (In fact `--script` will still output a
 script that does what you want it to, but it won't be particularly readable...)
 
+#### Can I customise the shebang on the output of `--script`?
+
+Yes! Just add the shebang you want to your [config file](https://github.com/hauntsaninja/pyp#pyp-is-configurable).
+`pyp` will use the shebang of the file pointed to by `PYP_CONFIG_PATH` as the shebang for the output
+of `--explain`/`--script`.
 
 #### The output of `--explain` is a little weirdly formatted
 
@@ -58,16 +62,10 @@ You can also pipe the output of `pyp --explain` to an autoformatter like [black]
 $ pyp --explain x | black --quiet -
 ```
 
-#### Can I customise the shebang on the output of `--script`?
-
-Yes! Just add the shebang you want to your [config file](https://github.com/hauntsaninja/pyp#pyp-is-configurable).
-`pyp` will use the shebang of the file pointed to by `PYP_CONFIG_PATH` as the shebang for the output
-of `--explain`/`--script`.
-
 #### What is start up performance like?
 
-It's not perceptible in my use of pyp. And remember if you're piping input into `pyp` that processes
-start in parallel, so this is zero extra wall time if your piped input has any latency.
+It's not perceptible in my use of pyp. And remember that if you're piping input into `pyp`,
+processes start in parallel, so this is zero extra wall time if your piped input has any latency.
 
 Here's a benchmark that should basically just be measuring the fixed costs of start up and AST
 transformation (run on my old, not powerful laptop):
@@ -76,6 +74,41 @@ $ hyperfine -w 10 -m 100 'pyp x'
 Benchmark #1: pyp x
   Time (mean ± σ):      81.5 ms ±   1.4 ms    [User: 60.3 ms, System: 15.9 ms]
   Range (min … max):    78.6 ms …  84.8 ms    100 runs
+```
+
+One note here, as mentioned in the README, is that if you use wildcard imports (`from x import *`)
+in your [config file](https://github.com/hauntsaninja/pyp#pyp-is-configurable), pyp might need to
+perform those imports to resolve undefined names (although pyp avoids this if possible). If this is
+causing you latency, just import what you need instead (i.e., change your config to read
+`from x import y, z`).
+
+#### What is overall performance like?
+
+Better than awk! ;-)
+```
+$ hyperfine -w 3 -m 10 "seq 1 999999 | pyp 'sum(map(int, stdin))'"
+Benchmark #1: seq 1 999999 | pyp 'sum(map(int, stdin))'
+  Time (mean ± σ):     490.9 ms ±   4.3 ms    [User: 848.8 ms, System: 26.0 ms]
+  Range (min … max):   487.4 ms … 502.3 ms    10 runs
+
+$ hyperfine -w 3 -m 10 'seq 1 999999 | awk "{s += $0} END {print s}"'
+Benchmark #1: seq 1 999999 | awk "{s += $0} END {print s}"
+  Time (mean ± σ):     754.6 ms ±   4.8 ms    [User: 1.152 s, System: 0.013 s]
+  Range (min … max):   748.9 ms … 763.2 ms    10 runs
+```
+
+More seriously, random micro benchmark aside, pyp should be fast enough that you shouldn't worry
+about performance until you know you need to, as with Python itself.
+
+One note is that the the magic variable `lines` is currently always a list. Hence, if you find
+yourself processing really large input, it might be better to use the magic variable `stdin`
+(this is just `sys.stdin`). For the above example:
+
+```
+$ hyperfine -w 3 -m 10 "seq 1 999999 | pyp 'sum(map(int, lines))'"
+Benchmark #1: seq 1 999999 | pyp 'sum(map(int, lines))'
+  Time (mean ± σ):     848.5 ms ± 146.2 ms    [User: 1.157 s, System: 0.087 s]
+  Range (min … max):   748.4 ms … 1239.1 ms    10 runs
 ```
 
 #### Can I use pyp with PyPy?
