@@ -530,6 +530,15 @@ def run_pyp(args: argparse.Namespace) -> None:
                 line_to_node: Dict[int, ast.AST] = {}
                 for node in dfs_walk(tree):
                     line_to_node.setdefault(getattr(node, "lineno", -1), node)
+
+                def code_for_line(lineno: int) -> str:
+                    node = line_to_node[lineno]
+                    # Don't unparse nested child statements. Note this destroys the tree.
+                    for _, value in ast.iter_fields(node):
+                        if isinstance(value, list) and value and isinstance(value[0], ast.stmt):
+                            value.clear()
+                    return unparse(node).strip()
+
                 # Time to commit several sins against CPython implementation details
                 tb_except = traceback.TracebackException(
                     type(e), e, e.__traceback__.tb_next  # type: ignore
@@ -537,7 +546,7 @@ def run_pyp(args: argparse.Namespace) -> None:
                 tb_except.exc_traceback = None  # type: ignore
                 for fs in tb_except.stack:
                     if fs.filename == "<pyp>":
-                        fs._line = unparse(line_to_node[fs.lineno]).strip()  # type: ignore
+                        fs._line = code_for_line(fs.lineno)  # type: ignore
                         fs.lineno = "PYP_REDACTED"  # type: ignore
                 message = "Possible reconstructed traceback (most recent call last):\n"
                 message += "".join(tb_except.format()).strip("\n")

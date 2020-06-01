@@ -172,6 +172,8 @@ def test_user_error():
     with pytest.raises(pyp.PypError, match=pattern):
         run_pyp("pyp -b 'lines = map(int, lines)' 'sum(lines)'")
 
+
+def test_tracebacks():
     # If our sins against traceback implementation details come back to haunt us, and we can't
     # reconstruct a traceback, check that we still output something reasonable
     TBE = traceback.TracebackException
@@ -205,6 +207,10 @@ def test_user_error():
         "ZeroDivisionError: division by zero\n"
     )
     assert pyp_error == message("(", ")") or pyp_error == message("", "")
+
+    # Test tracebacks involving statements with nested child statements
+    pyp_error = run_cmd("""pyp 'if 1 / 0: print("should_not_get_here")'""", check=False)
+    assert "should_not_get_here" not in pyp_error
 
 
 def test_explain():
