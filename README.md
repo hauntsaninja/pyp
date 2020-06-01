@@ -74,7 +74,8 @@ cat setup.py | pyp 'f"{idx+1: >3} {x}"'
 ```
 
 #### Note so far you haven't had to call `print`!
-By default, pyp will print the last expression in your code — except if it evaluates to `None`.
+By default, pyp will print the last expression in your code — except if it evaluates to `None`
+(or the last statement is `pass`).
 And you can always explicitly call `print` yourself, in which case pyp will stay out of your way.
 
 ```sh
