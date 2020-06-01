@@ -545,11 +545,20 @@ def run_pyp(args: argparse.Namespace) -> None:
             except Exception:
                 message = "".join(traceback.format_exception_only(type(e), e)).strip()
             if isinstance(e, ModuleNotFoundError):
-                message = (
-                    "Note pyp treats undefined names as modules to automatically import. Perhaps "
-                    "you forgot to define something or PYP_CONFIG_PATH is set incorrectly?\n\n"
-                    + message
+                message += (
+                    "\n\nNote pyp treats undefined names as modules to automatically import. "
+                    "Perhaps you forgot to define something or PYP_CONFIG_PATH is set incorrectly?"
                 )
+            if args.before and isinstance(e, NameError):
+                var = str(e)
+                var = var[var.find("'") + 1 : var.rfind("'")]
+                if var in ("lines", "stdin"):
+                    message += (
+                        "\n\nNote code in `--before` runs before any magic variables are defined "
+                        "and should not process input. Your command should work by simply removing "
+                        "`--before`, so instead passing in multiple statements in the main section "
+                        "of your code."
+                    )
             raise PypError(
                 "Code raised the following exception, consider using --explain to investigate:\n\n"
                 f"{message}"

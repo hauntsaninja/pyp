@@ -159,11 +159,18 @@ def test_user_error():
     with pytest.raises(pyp.PypError, match=pattern):
         run_pyp("pyp '1 / 0'")
 
+    # Test the special cased error messages
     pattern = re.compile(
-        "Code raised.*forgot.*PYP_CONFIG_PATH.*Possible.*import lol.*ModuleNotFoundError", re.DOTALL
+        "Code raised.*Possible.*import lol.*ModuleNotFoundError.*forgot.*PYP_CONFIG_PATH", re.DOTALL
     )
     with pytest.raises(pyp.PypError, match=pattern):
         run_pyp("pyp 'lol'")
+
+    pattern = re.compile(
+        "Code raised.*Possible.*lines.*NameError.*--before.*before any magic variables", re.DOTALL
+    )
+    with pytest.raises(pyp.PypError, match=pattern):
+        run_pyp("pyp -b 'lines = map(int, lines)' 'sum(lines)'")
 
     # If our sins against traceback implementation details come back to haunt us, and we can't
     # reconstruct a traceback, check that we still output something reasonable
