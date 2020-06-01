@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Improved reconstructed tracebacks when errors occur in statements with nested child statements
+- Added a helpful note for errors resulting from using magic variables in `--before` code
+- Added an FAQ
+- Added `--version`
+
 Thanks to @piec!
 
 ## [v0.3.1]
