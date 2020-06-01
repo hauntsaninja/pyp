@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.3.2]
 
 - Improved reconstructed tracebacks when errors occur in statements with nested child statements
 - Added a helpful note for errors resulting from using magic variables in `--before` code
