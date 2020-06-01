@@ -12,6 +12,7 @@ from collections import defaultdict
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 __all__ = ["pypprint"]
+__version__ = "???"
 
 
 def pypprint(*args, **kwargs):  # type: ignore
@@ -617,6 +618,9 @@ def parse_options(args: List[str]) -> argparse.Namespace:
         "--define-pypprint",
         action="store_true",
         help="Defines pypprint, if used, instead of importing it from pyp.",
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"pyp {__version__}",
     )
     return parser.parse_args(args)
 
