@@ -243,6 +243,9 @@ to remember commands.
 or syntax sugar. You don't mind (or want to be able to) fall back to a script via `--script` to deal
 with complexity.
 
+### [fluentpy](https://github.com/dwt/fluent)
+Fluentpy provides fluent interfaces to existing APIs such as the standard library, allowing you to use them in an object oriented and fluent style, inspired by JavaScript's jQuery and underscore / lodash as well as the collections API in Ruby and SmallTalk. It aims to provide the missing glue to make the standard library nicer and easier to use in short Python scripts and shell one liners or filters.
+
 ### [xonsh](https://xon.sh/)
 
 `xonsh` is a shell whose language is a superset of Python; this is more ambitious and pretty
