@@ -1,5 +1,17 @@
 # FAQ
 
+### Contents
+
+- [I'm running into issues with newlines / complicated statements](#i-m-running-into-issues-with-newlines---complicated-statements)
+- [What are pyp's dependencies?](#what-are-pyp-s-dependencies-)
+- [Can I customise the shebang on the output of `--script`?](#can-i-customise-the-shebang-on-the-output-of----script--)
+- [The output of `--explain` is a little weirdly formatted](#the-output-of----explain--is-a-little-weirdly-formatted)
+- [What is start up performance like?](#what-is-start-up-performance-like-)
+- [What is overall performance like?](#what-is-overall-performance-like-)
+- [Can I use pyp with PyPy?](#can-i-use-pyp-with-pypy-)
+
+---
+
 #### I'm running into issues with newlines / complicated statements
 
 You have a couple options here! As mentioned in the [README](https://github.com/hauntsaninja/pyp#pyp-lets-you-run-snippets-of-python-before-and-after-processing-input),
@@ -100,7 +112,7 @@ Benchmark #1: seq 1 999999 | awk "{s += $0} END {print s}"
 More seriously, random micro benchmark aside, pyp should be fast enough that you shouldn't worry
 about performance until you know you need to, as with Python itself.
 
-One note is that the the magic variable `lines` is currently always a list. Hence, if you find
+One note here is that the the magic variable `lines` is currently always a list. Hence, if you find
 yourself processing really large input, it might be better to use the magic variable `stdin`
 (this is just `sys.stdin`). For the above example:
 
