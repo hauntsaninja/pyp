@@ -344,24 +344,12 @@ class PypTransform:
         How we do this depends on which magic variables are used.
 
         """
-        # We'll use sys here no matter what; add it to undefined so we import it later
-        self.undefined.add("sys")
-
         MAGIC_VARS = {
             "index": {"i", "idx", "index"},
             "loop": {"line", "x", "l", "s"},
             "input": {"lines", "stdin"},
         }
         possible_vars = {typ: names & self.undefined for typ, names in MAGIC_VARS.items()}
-
-        if not any(possible_vars.values()):
-            no_pipe_assertion = ast.parse(
-                "assert sys.stdin.isatty() or not sys.stdin.read(), "
-                '''"The command doesn't process input, but input is present"'''
-            )
-            self.tree.body = no_pipe_assertion.body + self.tree.body
-            self.use_pypprint_for_implicit_print()
-            return
 
         if (possible_vars["loop"] or possible_vars["index"]) and possible_vars["input"]:
             loop_names = ", ".join(possible_vars["loop"] or possible_vars["index"])
@@ -375,6 +363,9 @@ class PypTransform:
             if len(names) > 1:
                 names_str = ", ".join(names)
                 raise PypError(f"Multiple candidates for {typ} variable: {names_str}")
+
+        # We'll use sys here no matter what; add it to undefined so we import it later
+        self.undefined.add("sys")
 
         if possible_vars["loop"] or possible_vars["index"]:
             # We'll loop over stdin and define loop / index variables
@@ -397,7 +388,7 @@ class PypTransform:
             loop: ast.For = ast.parse(for_loop).body[0]  # type: ignore
             loop.body.extend(self.tree.body)
             self.tree.body = [loop]
-        else:
+        elif possible_vars["input"]:
             # We'll read from stdin and define the necessary input variable
             input_var = possible_vars["input"].pop()
             self.define(input_var)
@@ -408,6 +399,13 @@ class PypTransform:
                 input_assign = ast.parse(f"{input_var} = [x.rstrip('\\n') for x in sys.stdin]")
 
             self.tree.body = input_assign.body + self.tree.body
+            self.use_pypprint_for_implicit_print()
+        else:
+            no_pipe_assertion = ast.parse(
+                "assert sys.stdin.isatty() or not sys.stdin.read(), "
+                '''"The command doesn't process input, but input is present"'''
+            )
+            self.tree.body = no_pipe_assertion.body + self.tree.body
             self.use_pypprint_for_implicit_print()
 
     def build_missing_config(self) -> None:
