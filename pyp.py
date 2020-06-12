@@ -166,7 +166,7 @@ class PypConfig:
         # List of config parts
         self.parts: List[ast.stmt] = config_ast.body
         # Maps from a name to index of config part that defines it
-        self.defined_names: Dict[str, int] = {}
+        self.name_to_def: Dict[str, int] = {}
         # Maps from index of config part to undefined names it needs
         self.requires: Dict[int, Set[str]] = defaultdict(set)
         # Modules from which automatic imports work without qualification, ordered by AST encounter
@@ -180,9 +180,9 @@ class PypConfig:
 
         def add_defs(index: int, defs: Set[str]) -> None:
             for name in defs:
-                if self.defined_names.get(name, index) != index:
+                if self.name_to_def.get(name, index) != index:
                     raise PypError(f"Config has multiple definitions of {repr(name)}")
-                self.defined_names[name] = index
+                self.name_to_def[name] = index
 
         def inner(index: int, part: ast.AST) -> None:
             if isinstance(part, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
@@ -413,17 +413,17 @@ class PypTransform:
         config_definitions: Set[str] = set()
         attempt_to_define = set(self.undefined)
         while attempt_to_define:
-            can_define = attempt_to_define & set(self.config.defined_names)
+            can_define = attempt_to_define & set(self.config.name_to_def)
             config_definitions.update(can_define)
             # The things we can define might in turn require some definitions, so update the things
             # we need to attempt to define and loop
             attempt_to_define = set()
             for name in can_define:
-                attempt_to_define.update(self.config.requires[self.config.defined_names[name]])
+                attempt_to_define.update(self.config.requires[self.config.name_to_def[name]])
             # We don't need to attempt to define things we've already decided we need to define
             attempt_to_define -= config_definitions
 
-        config_indices = sorted({self.config.defined_names[name] for name in config_definitions})
+        config_indices = sorted({self.config.name_to_def[name] for name in config_definitions})
         self.before_tree.body = [
             self.config.parts[i] for i in config_indices
         ] + self.before_tree.body
