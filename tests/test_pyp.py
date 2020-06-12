@@ -472,6 +472,7 @@ def test_config_invalid(config_mock):
     with pytest.raises(pyp.PypError, match=r"Config.*cannot redefine built-in.*'stdin'"):
         run_pyp("type(stdin).__name__")
 
+    # See test_config_scope for more
     config_mock.return_value = "def f(x): stdin = 5"
     run_pyp("x")
     run_pyp("stdin")
@@ -500,11 +501,39 @@ def test_config_lazy_wildcard_import(config_mock):
 
 
 @patch("pyp.get_config_contents")
+def test_config_automatic_import(config_mock):
+    config_mock.return_value = "j = json"
+    script1 = """
+#!/usr/bin/env python3
+import json
+import sys
+j = json
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+j
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "j; pass"]), script1)
+
+    config_mock.return_value = "from typing import *\nL = List"
+    script2 = """
+#!/usr/bin/env python3
+from typing import List
+import sys
+L = List
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+L
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "L; pass"]), script2)
+
+
+@patch("pyp.get_config_contents")
 def test_config_scope(config_mock):
     config_mock.return_value = """
-def f(x): contextlib = 5
-class A:
-    def asyncio(self): ...
+def f(x, stdin, asyncio):
+    contextlib = 5
+    import asyncio
+class A(asyncio):
+    contextlib = 55
+    def asyncio(self, asyncio): ...
 """
     script = """
 #!/usr/bin/env python3
@@ -605,6 +634,9 @@ assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process 
 unparse(ast.parse('x'))
 """  # noqa
     compare_scripts(run_pyp(["--explain", "unparse(ast.parse('x')); pass"]), script2)
+
+    config_mock.return_value = "foo = False\nif foo: y = 5\nelse: y = 10"
+    assert run_pyp("y") == "10\n"
 
 
 @pytest.mark.xfail(reason="We don't currently support this")
