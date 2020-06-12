@@ -174,6 +174,28 @@ seq 1 110 | pyp 'lines > foreach(int) | where(X > 100) | group_by(X % 3) | sort_
 names, though we skip this in the happy path. If this matters to you, definitely don't
 `from tensorflow import *` in your config! </sub>
 
+#### pyp lets you configure your own magic!
+
+If definitions in your config file depend on magic variables, pyp will substitute them in the
+way that makes sense. For example, put the following in your config...
+```py
+n = int(x)
+f = x.split()
+j = json.load(stdin)
+
+import pandas as pd
+csv = pd.read_csv(stdin)
+```
+
+...to make pyp easier than ever for your custom use cases:
+```sh
+ps | pyp 'f[3]'
+
+cat commits.json | pyp 'j[0]["commit"]["author"]'
+
+< cities.csv pyp 'csv.to_string()'
+```
+
 #### I have questions!
 
 There's additional documentation and examples at [FAQ](https://github.com/hauntsaninja/pyp/blob/master/FAQ.md).
