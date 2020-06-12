@@ -365,6 +365,35 @@ smallarray()
 
 
 @patch("pyp.get_config_contents")
+def test_config_magic_vars(config_mock):
+    config_mock.return_value = "n = int(x)\nj = json.loads(stdin)\ndef upfront(): pass"
+
+    script1 = """
+#!/usr/bin/env python3
+import json
+import sys
+from pyp import pypprint
+stdin = sys.stdin
+j = json.loads(stdin)
+output = j[0]
+if output is not None:
+    pypprint(output)
+"""
+    compare_scripts(run_pyp(["--explain", "j[0]"]), script1)
+
+    script2 = r"""
+#!/usr/bin/env python3
+import sys
+for x in sys.stdin:
+    x = x.rstrip('\n')
+    n = int(x)
+    if n is not None:
+        print(n)
+"""
+    compare_scripts(run_pyp(["--explain", "n"]), script2)
+
+
+@patch("pyp.get_config_contents")
 def test_config_invalid(config_mock):
     config_mock.return_value = "import numpy as np\nimport scipy as np"
     with pytest.raises(pyp.PypError, match="Config has multiple definitions"):
@@ -449,6 +478,11 @@ def test_config_shadow(config_mock):
     config_mock.return_value = "range = 5"
     assert run_pyp("print(range)") == "5\n"
 
+    # shadowing print
+    config_mock.return_value = "print = lambda p: p"
+    assert run_pyp("x", input="9") == "9\n"
+    assert run_pyp("print(x)", input="9") == ""
+
     # shadowing a wildcard import
     config_mock.return_value = "from typing import *\nList = 5"
     assert run_pyp("List") == "5\n"
@@ -460,6 +494,12 @@ def test_config_shadow(config_mock):
     # shadowing a user passed wildcard import
     config_mock.return_value = "from os.path import *"
     assert run_pyp(["from shlex import *", "split.__module__"]) == "shlex\n"
+
+
+@patch("pyp.get_config_contents")
+def test_config_automatic_print(config_mock):
+    config_mock.return_value = "def tnirp(p): print(''.join(reversed(p)))"
+    assert run_pyp("tnirp(x)", input="tnirp") == "print\n"
 
 
 @patch("pyp.get_config_contents")
