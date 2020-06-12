@@ -221,6 +221,7 @@ class PypConfig:
         self.parts: List[ast.stmt] = config_ast.body
         # Maps from a name to index of config part that defines it
         self.name_to_def: Dict[str, int] = {}
+        self.def_to_names: Dict[int, List[str]] = defaultdict(list)
         # Maps from index of config part to undefined names it needs
         self.requires: Dict[int, Set[str]] = defaultdict(set)
         # Modules from which automatic imports work without qualification, ordered by AST encounter
@@ -250,6 +251,7 @@ class PypConfig:
                 if is_magic_var(name):
                     raise PypError(f"Config cannot redefine built-in magic variable {repr(name)}")
                 self.name_to_def[name] = index
+                self.def_to_names[index].append(name)
             self.requires[index] = f.undefined
             self.wildcard_imports.extend(f.wildcard_imports)
 
@@ -289,12 +291,61 @@ class PypTransform:
         self.defined: Set[str] = f.top_level_defined
         self.undefined: Set[str] = f.undefined
         self.wildcard_imports: List[str] = f.wildcard_imports
+        # We'll always use sys in ``build_input``, so add it to undefined.
+        # This lets config define it or lets us automatically import it later
+        # (If before defines it, we'll just let it override the import...)
+        self.undefined.add("sys")
 
         self.define_pypprint = define_pypprint
         self.config = config
 
         # The print statement ``build_output`` will add, if it determines it needs to.
         self.implicit_print: Optional[ast.Call] = None
+
+    def build_missing_config(self) -> None:
+        """Modifies the AST to define undefined names defined in config."""
+        config_definitions: Set[str] = set()
+        attempt_to_define = set(self.undefined)
+        while attempt_to_define:
+            can_define = attempt_to_define & set(self.config.name_to_def)
+            # The things we can define might in turn require some definitions, so update the things
+            # we need to attempt to define and loop
+            attempt_to_define = set()
+            for name in can_define:
+                config_definitions.update(self.config.def_to_names[self.config.name_to_def[name]])
+                attempt_to_define.update(self.config.requires[self.config.name_to_def[name]])
+            # We don't need to attempt to define things we've already decided we need to define
+            attempt_to_define -= config_definitions
+
+        config_indices = {self.config.name_to_def[name] for name in config_definitions}
+
+        # Run basically the same thing in reverse to see which dependencies stem from magic vars
+        before_config_indices = set(config_indices)
+        derived_magic_indices = {
+            i for i in config_indices if any(map(is_magic_var, self.config.requires[i]))
+        }
+        derived_magic_names = set()
+
+        while derived_magic_indices:
+            before_config_indices -= derived_magic_indices
+            derived_magic_names |= {
+                name for i in derived_magic_indices for name in self.config.def_to_names[i]
+            }
+            derived_magic_indices = {
+                i for i in before_config_indices if self.config.requires[i] & derived_magic_names
+            }
+        magic_config_indices = config_indices - before_config_indices
+
+        before_config_defs = [self.config.parts[i] for i in sorted(before_config_indices)]
+        magic_config_defs = [self.config.parts[i] for i in sorted(magic_config_indices)]
+
+        self.before_tree.body = before_config_defs + self.before_tree.body
+        self.tree.body = magic_config_defs + self.tree.body
+
+        for i in config_indices:
+            self.undefined.update(self.config.requires[i])
+        self.defined |= config_definitions
+        self.undefined -= config_definitions
 
     def define(self, name: str) -> None:
         """Defines a name."""
@@ -399,9 +450,6 @@ class PypTransform:
                 names_str = ", ".join(names)
                 raise PypError(f"Multiple candidates for {typ} variable: {names_str}")
 
-        # We'll use sys here no matter what; add it to undefined so we import it later
-        self.undefined.add("sys")
-
         if possible_vars["loop"] or possible_vars["index"]:
             # We'll loop over stdin and define loop / index variables
             idx_var = possible_vars["index"].pop() if possible_vars["index"] else None
@@ -442,27 +490,6 @@ class PypTransform:
             )
             self.tree.body = no_pipe_assertion.body + self.tree.body
             self.use_pypprint_for_implicit_print()
-
-    def build_missing_config(self) -> None:
-        """Modifies the AST to define undefined names defined in config."""
-        config_definitions: Set[str] = set()
-        attempt_to_define = set(self.undefined)
-        while attempt_to_define:
-            can_define = attempt_to_define & set(self.config.name_to_def)
-            config_definitions.update(can_define)
-            # The things we can define might in turn require some definitions, so update the things
-            # we need to attempt to define and loop
-            attempt_to_define = set()
-            for name in can_define:
-                attempt_to_define.update(self.config.requires[self.config.name_to_def[name]])
-            # We don't need to attempt to define things we've already decided we need to define
-            attempt_to_define -= config_definitions
-
-        config_indices = sorted({self.config.name_to_def[name] for name in config_definitions})
-        self.before_tree.body = [
-            self.config.parts[i] for i in config_indices
-        ] + self.before_tree.body
-        self.undefined -= config_definitions
 
     def build_missing_imports(self) -> None:
         """Modifies the AST to import undefined names."""
@@ -514,9 +541,9 @@ class PypTransform:
 
     def build(self) -> ast.Module:
         """Returns a transformed AST."""
+        self.build_missing_config()
         self.build_output()
         self.build_input()
-        self.build_missing_config()
         self.build_missing_imports()
 
         ret = ast.parse("")
