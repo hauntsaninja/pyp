@@ -281,7 +281,7 @@ class PypTransform:
         thing in the tree is an expression, modifying the tree to print it.
 
         """
-        if self.undefined & {"print", "pprint", "pypprint"}:  # has an explicit print
+        if self.undefined & {"print", "pprint", "pp", "pypprint"}:  # has an explicit print
             return
 
         def inner(body: List[ast.stmt], use_pypprint: bool = False) -> bool:
