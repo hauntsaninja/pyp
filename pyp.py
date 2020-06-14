@@ -280,7 +280,7 @@ class PypTransform:
         self.defined.add(name)
         self.undefined.discard(name)
 
-    def get_valid_name(self, name: str) -> str:
+    def get_valid_name_in_top_scope(self, name: str) -> str:
         """Return a name related to ``name`` that does not conflict with existing definitions."""
         while name in self.defined or name in self.undefined:
             name += "_"
@@ -306,6 +306,8 @@ class PypTransform:
                 # If the last thing in the tree is a statement that has a body (and doesn't have an
                 # orelse, since users could expect the print in that branch), recursively look
                 # for a standalone expression.
+                # Technically, we should check to see that we're not entering a different scope,
+                # e.g., ``pyp 'x' 'def f(x): (output := x) + 1' --explain`` looks problematic.
                 if hasattr(body[-1], "body") and not getattr(body[-1], "orelse", []):
                     return inner(body[-1].body, use_pypprint)  # type: ignore
                 return False
@@ -314,7 +316,7 @@ class PypTransform:
                 output = body[-1].value.id
                 body.pop()
             else:
-                output = self.get_valid_name("output")
+                output = self.get_valid_name_in_top_scope("output")
                 self.define(output)
                 body[-1] = ast.Assign(
                     targets=[ast.Name(id=output, ctx=ast.Store())], value=body[-1].value
