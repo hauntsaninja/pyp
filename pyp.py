@@ -39,82 +39,101 @@ def pypprint(*args, **kwargs):  # type: ignore
         print(x, **kwargs)
 
 
+class _NameFinder(ast.NodeVisitor):
+    def __init__(self) -> None:
+        self.defined: List[Set[str]] = [set()]
+        self.undefined: Set[str] = set()
+
+    def flexible_visit(self, value: Any) -> None:
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, ast.AST):
+                    self.visit(item)
+        elif isinstance(value, ast.AST):
+            self.visit(value)
+
+    def generic_visit(self, node: ast.AST) -> None:
+        def order(f_v: Tuple[str, Any]) -> int:
+            # This ordering fixes comprehensions, loops, assignments
+            return {"generators": -2, "iter": -2, "value": -1}.get(f_v[0], 0)
+
+        # Adapted from ast.NodeVisitor.generic_visit, but re-orders traversal a little
+        for _, value in sorted(ast.iter_fields(node), key=order):
+            self.flexible_visit(value)
+
+    def visit_Name(self, node: ast.Name) -> None:
+        if isinstance(node.ctx, ast.Load):
+            if all(node.id not in d for d in self.defined):
+                self.undefined.add(node.id)
+        elif isinstance(node.ctx, ast.Store):
+            self.defined[-1].add(node.id)
+        # Ignore deletes, see docstring
+        self.generic_visit(node)
+
+    def visit_AugAssign(self, node: ast.AugAssign) -> None:
+        if isinstance(node.target, ast.Name):
+            # TODO: think about global, nonlocal
+            if node.target.id not in self.defined[-1]:
+                self.undefined.add(node.target.id)
+        self.generic_visit(node)
+
+    def visit_alias(self, node: ast.alias) -> None:
+        # Note that we don't generic_visit here, since a) alias has a name field but we don't
+        # necessarily want to define that name, as seen below, b) we're a terminal node
+        self.defined[-1].add(node.asname if node.asname is not None else node.name)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self.flexible_visit(node.decorator_list)
+        self.flexible_visit(node.bases)
+        self.flexible_visit(node.keywords)
+
+        self.defined.append(set())
+        self.flexible_visit(node.body)
+        self.defined.pop()
+
+        self.defined[-1].add(node.name)
+
+    def visit_function_helper(self, node: Any, name: Optional[str] = None) -> None:
+        self.flexible_visit(node.args)
+        if name is not None:
+            self.defined[-1].add(name)
+
+        self.defined.append(set())
+        for arg_node in ast.iter_child_nodes(node.args):
+            if isinstance(arg_node, ast.arg):
+                self.defined[-1].add(arg_node.arg)
+        self.flexible_visit(node.body)
+        self.defined.pop()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self.flexible_visit(node.decorator_list)
+        self.visit_function_helper(node, node.name)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self.flexible_visit(node.decorator_list)
+        self.visit_function_helper(node, node.name)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        self.visit_function_helper(node)
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        if node.name:
+            self.defined[-1].add(node.name)
+        self.generic_visit(node)
+
+
 def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
     """Returns a tuple of defined and undefined names in the given AST.
 
-    A defined name is any name that is stored to (approximately*).
-    An undefined name is any name that is loaded before it is defined.
+    A defined name is any name that is stored to in the top-level scope of ``tree``.
+    An undefined name is any name that is loaded before it is defined (in any scope).
 
-    [*] The details are below in code, but imports, function and class definitions, function
-    arguments and exception handlers also define names for our purposes.
-
-    Note that we ignore deletes and scopes. Our notion of definition is very simplistic; once
-    something is defined, it's never undefined. This is an okay approximation for our use case.
-    Note used builtins will appear in undefined names.
+    Note that we ignore deletes. Note used builtins will appear in undefined names.
 
     """
-    undefined = set()
-    defined = set()
-
-    class _Finder(ast.NodeVisitor):
-        def generic_visit(self, node: ast.AST) -> None:
-            def order(f_v: Tuple[str, Any]) -> int:
-                # This ordering fixes comprehensions, loops, assignments
-                ordering = {"generators": -2, "iter": -2, "value": -1}
-                # name is used in (Async)FunctionDef, ClassDef, ExceptHandler, alias
-                # Stable sort order works for ExceptHandler and alias is special cased below
-                name = 0
-                args = 0
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    name = -1  # Functions are okay with recursion
-                    args = -2  # but not with self reference while defining default values
-                if isinstance(node, ast.ClassDef):
-                    name = 1  # Classes are not okay with self reference
-                ordering.update({"decorator_list": -3, "name": name, "args": args})
-                return ordering.get(f_v[0], 0)
-
-            # Adapted from ast.NodeVisitor.generic_visit, but re-orders traversal a little using
-            # ``order`` and adds name fields to defined (except for alias.name)
-            for _field, value in sorted(ast.iter_fields(node), key=order):
-                if _field == "name":
-                    if value is not None:  # ExceptHandler's name can be None
-                        # Mark names as defined, see docstring and comments in ``order``
-                        defined.add(value)
-                elif isinstance(value, list):
-                    for item in value:
-                        if isinstance(item, ast.AST):
-                            self.visit(item)
-                elif isinstance(value, ast.AST):
-                    self.visit(value)
-
-        def visit_Name(self, node: ast.Name) -> None:
-            if isinstance(node.ctx, ast.Load):
-                if node.id not in defined:
-                    undefined.add(node.id)
-            elif isinstance(node.ctx, ast.Store):
-                defined.add(node.id)
-            # Ignore deletes, see docstring
-            self.generic_visit(node)
-
-        def visit_AugAssign(self, node: ast.AugAssign) -> None:
-            if isinstance(node.target, ast.Name):
-                if node.target.id not in defined:
-                    undefined.add(node.target.id)
-            self.generic_visit(node)
-
-        def visit_arg(self, node: ast.arg) -> None:
-            # Mark arguments as defined, see docstring
-            defined.add(node.arg)
-            self.generic_visit(node)
-
-        def visit_alias(self, node: ast.alias) -> None:
-            # Mark imports as defined, see docstring
-            # Note that we don't generic_visit here, since a) alias has a name field but we don't
-            # necessarily want to define that name, as seen below, b) we're a terminal node
-            defined.add(node.asname if node.asname is not None else node.name)
-
-    _Finder().visit(tree)
-    return defined, undefined
+    f = _NameFinder()
+    f.visit(tree)
+    return f.defined[0], f.undefined
 
 
 def dfs_walk(node: ast.AST) -> Iterator[ast.AST]:

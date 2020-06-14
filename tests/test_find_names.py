@@ -109,7 +109,8 @@ def test_walrus():
     check_find_names("x = (x := 1)", {"x"}, set())
     check_find_names("(x := x)", {"x"}, {"x"})
     check_find_names("x += (x := 1)", {"x"}, {"x"})
-    check_find_names("f((f := lambda x: x))", {"f", "x"}, {"f"})
+    check_find_names("f((f := lambda x: x))", {"f"}, {"f"})
+    check_find_names("f((f := lambda x: (x, y)))", {"f"}, {"f", "y"})
     check_find_names("if (x := 1): print(x)", {"x"}, {"print"})
     check_find_names("(y for x in xx if (y := x) == 'foo')", {"x", "y"}, {"xx"})
     check_find_names("x: (x := 1) = 2", {"x"}, set())
@@ -118,14 +119,14 @@ def test_walrus():
     if sys.version_info >= (3, 9):
         check_find_names(
             "d1 = lambda i: i\n@(d2 := d1)\n@(d3 := d2)\ndef f(): ...",
-            {"d1", "i", "d2", "d3", "f"},
+            {"d1", "d2", "d3", "f"},
             set(),
         )
         check_find_names(
             "d1 = id\n@(d3 := d2)\n@(d2 := d1)\ndef f(): ...", {"d1", "d2", "d3", "f"}, {"d2", "id"}
         )
         check_find_names(
-            "d1 = lambda i: i\n@(d2 := d1)\ndef f(x=d2): d2", {"d1", "i", "d2", "f", "x"}, set()
+            "d1 = lambda i: i\n@(d2 := d1)\ndef f(x=d2): (x, d2)", {"d1", "d2", "f"}, set()
         )
 
 
@@ -142,13 +143,28 @@ def test_comprehensions():
 
 def test_args():
     check_find_names("f = lambda: x\nf()", {"f"}, {"x"})
-    check_find_names("f = lambda x: x\nf()", {"f", "x"}, set())
-    check_find_names("f = lambda x: y\nf(1)", {"f", "x"}, {"y"})
+    check_find_names("f = lambda x: x\nf()", {"f"}, set())
+    check_find_names("f = lambda x: y\nf(1)", {"f"}, {"y"})
     check_find_names(
-        "def f(x, y = 0, *z, a, b = 0, **c): ...", {"f", "a", "b", "c", "x", "y", "z"}, set()
+        "def f(x, y = 0, *z, a, b = 0, **c): (x, y, z, a, b, c, D)\nf(1, a=2)", {"f"}, {"D"}
     )
     check_find_names(
-        "async def f(x, y = 0, *z, a, b = 0, **c): ...", {"f", "a", "b", "c", "x", "y", "z"}, set()
+        "async def f(x, y = 0, *z, a, b = 0, **c): (x, y, z, a, b, c, D)",
+        {"f"},
+        {"D"},
+        confirm=False,
+    )
+
+    check_find_names("f = lambda x=(lambda y: y): x\nf(1)", {"f"}, set())
+    check_find_names("f = lambda x=(lambda y: y): y\nf(1)", {"f"}, {"y"})
+    check_find_names("def f(x=(lambda y: y)): x\nf(1)", {"f"}, set())
+    check_find_names("def f(x=(lambda y: y)): y\nf(1)", {"f"}, {"y"})
+
+    check_find_names("f = lambda x: x; x", {"f"}, {"x"})
+    check_find_names(
+        "def f(x, y = 0, *z, a, b = 0, **c): ...\n(x, y, z, a, b, c, D)",
+        {"f"},
+        {"x", "y", "z", "a", "b", "c", "D"},
     )
 
 
@@ -158,22 +174,18 @@ def test_definitions():
     check_find_names("async def f(): ...", {"f"}, set())
     check_find_names("def f(): f()", {"f"}, set())
     check_find_names("def f(): g()\nf()", {"f"}, {"g"})
-    check_find_names("def f(x=g): ...", {"f", "x"}, {"g"})
-    check_find_names("def f(x=f): ...", {"f", "x"}, {"f"})
+    check_find_names("def f(x=g): x", {"f"}, {"g"})
+    check_find_names("def f(x=g): y", {"f"}, {"g", "y"})
+    check_find_names("def f(x=f): x", {"f"}, {"f"})
     check_find_names("@f\ndef f(): ...", {"f"}, {"f"})
-    check_find_names("@f\ndef g(): f = 1", {"f", "g"}, {"f"})
+    check_find_names("@f\ndef g(): f = 1", {"g"}, {"f"})
     check_find_names("class A: ...", {"A"}, set())
     check_find_names("class A(B): ...", {"A"}, {"B"})
     check_find_names("class A(A): ...", {"A"}, {"A"})
     check_find_names("class A(A): A = 1", {"A"}, {"A"})
     check_find_names("class A: A", {"A"}, {"A"})
     check_find_names("@A\nclass A: ...", {"A"}, {"A"})
-    check_find_names("@A\nclass B: A = 1", {"A", "B"}, {"A"})
-
-
-@pytest.mark.xfail(reason="do not currently support scopes")
-def test_args_bad():
-    check_find_names("f = lambda x: x; x", {"f", "x"}, {"x"})
+    check_find_names("@A\nclass B: A = 1", {"B"}, {"A"})
 
 
 @pytest.mark.xfail(reason="do not currently support deletes")
