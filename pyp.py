@@ -43,6 +43,7 @@ class _NameFinder(ast.NodeVisitor):
     def __init__(self) -> None:
         self.defined: List[Set[str]] = [set()]
         self.undefined: Set[str] = set()
+        self.wildcard_imports: List[str] = []
 
     def flexible_visit(self, value: Any) -> None:
         if isinstance(value, list):
@@ -78,9 +79,13 @@ class _NameFinder(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_alias(self, node: ast.alias) -> None:
-        # Note that we don't generic_visit here, since a) alias has a name field but we don't
-        # necessarily want to define that name, as seen below, b) we're a terminal node
-        self.defined[-1].add(node.asname if node.asname is not None else node.name)
+        if node.name != "*":
+            self.defined[-1].add(node.asname if node.asname is not None else node.name)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        if node.module is not None and "*" in (a.name for a in node.names):
+            self.wildcard_imports.append(node.module)
+        self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         self.flexible_visit(node.decorator_list)
@@ -128,8 +133,8 @@ class _NameFinder(ast.NodeVisitor):
         self.defined[-1].remove(node.name)
 
 
-def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
-    """Returns a tuple of defined and undefined names in the given AST.
+def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str], List[str]]:
+    """Returns a tuple of defined, undefined names and wildcard imports in the given AST.
 
     A defined name is any name that is stored to in the top-level scope of ``tree``.
     An undefined name is any name that is loaded before it is defined (in any scope).
@@ -139,7 +144,7 @@ def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:
     """
     f = _NameFinder()
     f.visit(tree)
-    return f.defined[0], f.undefined
+    return f.defined[0], f.undefined, f.wildcard_imports
 
 
 def dfs_walk(node: ast.AST) -> Iterator[ast.AST]:
@@ -203,45 +208,25 @@ class PypConfig:
                 itertools.takewhile(lambda l: l.startswith("#"), config_contents.splitlines())
             )
 
-        def add_defs(index: int, defs: Set[str]) -> None:
-            for name in defs:
-                if self.name_to_def.get(name, index) != index:
-                    raise PypError(f"Config has multiple definitions of {repr(name)}")
-                self.name_to_def[name] = index
-
-        def inner(index: int, part: ast.AST) -> None:
-            if isinstance(part, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                # Functions and classes have their own scopes, so discard names that they define
-                _, undefs = find_names(part)
-                add_defs(index, {part.name})
-                self.requires[index].update(undefs)
-            elif isinstance(part, ast.ImportFrom):
-                if part.module is None:
-                    raise PypError(f"Config has unsupported import on line {part.lineno}")
-                defs, _ = find_names(part)
-                if "*" in defs:
-                    defs.remove("*")
-                    self.wildcard_imports.append(part.module)
-                add_defs(index, defs)
-            elif isinstance(part, (ast.Import, ast.Assign, ast.AnnAssign)):
-                defs, undefs = find_names(part)
-                add_defs(index, defs)
-                self.requires[index].update(undefs)
-            elif hasattr(part, "body") or hasattr(part, "orelse"):
-                # This allows us to do e.g., basic conditional definition
-                for part in getattr(part, "body", []) + getattr(part, "orelse", []):
-                    inner(index, part)
-            else:
+        top_level: Tuple[Any, ...] = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        top_level += (ast.Import, ast.ImportFrom, ast.Assign, ast.AnnAssign, ast.If, ast.Try)
+        for index, part in enumerate(self.parts):
+            if not isinstance(part, top_level):
                 node_type = type(
                     part.value if isinstance(part, ast.Expr) else part
                 ).__name__.lower()
                 raise PypError(
-                    "Config only supports a subset of Python at module level; "
+                    "Config only supports a subset of Python at top level; "
                     f"unsupported construct ({node_type}) on line {part.lineno}"
                 )
-
-        for index, part in enumerate(self.parts):
-            inner(index, part)
+            f = _NameFinder()
+            f.visit(part)
+            for name in f.defined[0]:
+                if self.name_to_def.get(name, index) != index:
+                    raise PypError(f"Config has multiple definitions of {repr(name)}")
+                self.name_to_def[name] = index
+            self.requires[index] = f.undefined
+            self.wildcard_imports.extend(f.wildcard_imports)
 
 
 class PypTransform:
@@ -278,7 +263,7 @@ class PypTransform:
         self.defined: Set[str] = set()
         self.undefined: Set[str] = set()
         for t in (self.before_tree, self.tree, self.after_tree):
-            _def, _undef = find_names(t)
+            _def, _undef, _ = find_names(t)
             self.undefined |= _undef - self.defined
             self.defined |= _def
 

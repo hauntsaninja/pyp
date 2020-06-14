@@ -1,16 +1,20 @@
 import ast
 import re
 import sys
-from typing import Set
+from typing import List, Optional, Set
 
 import pytest
 from pyp import find_names
 
 
 def check_find_names(
-    code: str, defined: Set[str], undefined: Set[str], confirm: bool = True
+    code: str,
+    defined: Set[str],
+    undefined: Set[str],
+    wildcard_imports: Optional[List[str]] = None,
+    confirm: bool = True,
 ) -> None:
-    assert (defined, undefined) == find_names(ast.parse(code))
+    assert (defined, undefined, wildcard_imports or []) == find_names(ast.parse(code))
 
     if not confirm:
         return
@@ -104,7 +108,7 @@ def test_import():
     check_find_names("import y as x", {"x"}, set())
     check_find_names("from y import x", {"x"}, set())
     check_find_names("from y import z as x", {"x"}, set())
-    check_find_names("from x import *", {"*"}, set())
+    check_find_names("from x import *", set(), set(), wildcard_imports=["x"])
 
 
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python 3.8 or later")

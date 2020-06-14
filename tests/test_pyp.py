@@ -337,10 +337,6 @@ def test_config_invalid(config_mock):
     with pytest.raises(pyp.PypError, match="Config has multiple definitions"):
         run_pyp("x")
 
-    config_mock.return_value = "from . import asdf"
-    with pytest.raises(pyp.PypError, match="Config has unsupported import"):
-        run_pyp("x")
-
     config_mock.return_value = "f()"
     with pytest.raises(pyp.PypError, match=r"Config.*unsupported construct \(call\)"):
         run_pyp("x")
@@ -467,19 +463,44 @@ try:
     import astunparse
     unparse = astunparse.unparse
 except ImportError:
-    import ast
     unparse = ast.unparse\
 """
-    config_mock.return_value = except_block
+    config_mock.return_value = f"import ast\n{except_block}"
     script2 = f"""
 #!/usr/bin/env python3
-import ast
 import sys
+import ast
 {except_block}
 assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
 unparse(ast.parse('x'))
 """  # noqa
     compare_scripts(run_pyp(["--explain", "unparse(ast.parse('x')); pass"]), script2)
+
+
+@pytest.mark.xfail(reason="We don't currently support this")
+@patch("pyp.get_config_contents")
+def test_config_conditional_current_shortcoming(config_mock):
+    # TODO: we should be able to ``import ast`` only in the except handler of the ImportError.
+    # However, this causes pyp to think that this config part defines ``ast`` (which is only
+    # sometimes true), resulting in us not importing ast.
+    except_block = """\
+try:
+    import astunparse
+    unparse = astunparse.unparse
+except ImportError:
+    import ast
+    unparse = ast.unparse\
+"""
+    config_mock.return_value = except_block
+    script3 = f"""
+#!/usr/bin/env python3
+import sys
+import ast
+{except_block}
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+unparse(ast.parse('x'))
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "unparse(ast.parse('x')); pass"]), script3)
 
 
 def test_config_end_to_end(monkeypatch):
