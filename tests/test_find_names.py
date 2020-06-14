@@ -62,6 +62,7 @@ def test_weird_assignments():
     check_find_names("x, y = x, y", {"x", "y"}, {"x", "y"})
     check_find_names("x: int = 1", {"x"}, {"int"})
     check_find_names("x: int = x", {"x"}, {"int", "x"})
+    check_find_names("x.y = 5", set(), {"x"})
 
 
 def test_more_control_flow():
@@ -88,6 +89,10 @@ def test_more_control_flow():
     check_find_names("with a as b, b as c: c", {"b", "c"}, {"a"})
     check_find_names("with a as c, b as c: c", {"c"}, {"a", "b"})
     check_find_names("with a as a: a", {"a"}, {"a"})
+
+    check_find_names("if False: x = 5\nelse: y = 5", {"x", "y"}, set())
+    # the following isn't ideal; we don't look at branches in parallel
+    check_find_names("if False: x = 5\nelse: y = x", {"x", "y"}, set(), confirm=False)
 
 
 def test_import():
