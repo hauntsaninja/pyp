@@ -492,7 +492,7 @@ class PypTransform:
         return ast.fix_missing_locations(ret)
 
 
-def unparse(tree: ast.AST, no_fallback: bool = False) -> str:
+def unparse(tree: ast.AST, short_fallback: bool = False) -> str:
     """Returns Python code equivalent to executing ``tree``."""
     if sys.version_info >= (3, 9):
         return ast.unparse(tree)
@@ -502,15 +502,17 @@ def unparse(tree: ast.AST, no_fallback: bool = False) -> str:
         return astunparse.unparse(tree)  # type: ignore
     except ImportError:
         pass
-    if no_fallback:
-        raise ImportError
+    if short_fallback:
+        return f"# {ast.dump(tree)}  # --explain has instructions to make this readable"
     return f"""
 from ast import *
 tree = fix_missing_locations({ast.dump(tree)})
-# To see this in human readable form, run `pyp` with Python 3.9
+
+# To see this in human readable form, run pyp with Python 3.9
 # Alternatively, install a third party ast unparser: `python3 -m pip install astunparse`
 # Once you've done that, simply re-run.
 # In the meantime, this script is fully functional, if not easily readable or modifiable...
+
 exec(compile(tree, filename="<ast>", mode="exec"), {{}})
 """
 
@@ -536,7 +538,7 @@ def run_pyp(args: argparse.Namespace) -> None:
                     for _, value in ast.iter_fields(node):
                         if isinstance(value, list) and value and isinstance(value[0], ast.stmt):
                             value.clear()
-                    return unparse(node).strip()
+                    return unparse(node, short_fallback=True).strip()
 
                 # Time to commit several sins against CPython implementation details
                 tb_except = traceback.TracebackException(
