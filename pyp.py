@@ -262,10 +262,12 @@ class PypTransform:
 
         self.defined: Set[str] = set()
         self.undefined: Set[str] = set()
+        self.wildcard_imports: List[str] = []
         for t in (self.before_tree, self.tree, self.after_tree):
-            _def, _undef, _ = find_names(t)
+            _def, _undef, _wildcard_imports = find_names(t)
             self.undefined |= _undef - self.defined
             self.defined |= _def
+            self.wildcard_imports.extend(_wildcard_imports)
 
         self.define_pypprint = define_pypprint
         self.config = config
@@ -469,7 +471,11 @@ class PypTransform:
             return getattr(mod, "__all__", (n for n in dir(mod) if not n.startswith("_")))
 
         subimports = {"Path": "pathlib", "pp": "pprint"}
-        wildcard_imports = ["itertools", "math", "collections"] + self.config.wildcard_imports
+        wildcard_imports = (
+            ["itertools", "math", "collections"]
+            + self.config.wildcard_imports
+            + self.wildcard_imports
+        )
         subimports.update(
             {name: module for module in wildcard_imports for name in get_names_in_module(module)}
         )

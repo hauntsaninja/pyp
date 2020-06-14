@@ -265,6 +265,32 @@ def test_get_valid_name():
     assert isinstance(e.value.__cause__, ImportError)
 
 
+def test_wildcard_import():
+    script1 = """
+#!/usr/bin/env python3
+from shlex import split
+import sys
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+from shlex import *
+split
+"""  # noqa
+    compare_scripts(run_pyp(["--explain", "from shlex import *", "split; pass"]), script1)
+
+    script2 = """
+#!/usr/bin/env python3
+from shlex import split
+import sys
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+from os.path import *
+from shlex import *
+split
+"""  # noqa
+    compare_scripts(
+        run_pyp(["--explain", "from os.path import *", "from shlex import *", "split; pass"]),
+        script2,
+    )
+
+
 # ====================
 # Config tests
 # ====================
@@ -417,6 +443,10 @@ def test_config_shadow(config_mock):
     # shadowing another wildcard import
     config_mock.return_value = "from os.path import *\nfrom shlex import *"
     assert run_pyp("split.__module__") == "shlex\n"
+
+    # shadowing a user passed wildcard import
+    config_mock.return_value = "from os.path import *"
+    assert run_pyp(["from shlex import *", "split.__module__"]) == "shlex\n"
 
 
 @patch("pyp.get_config_contents")
