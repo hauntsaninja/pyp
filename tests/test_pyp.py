@@ -392,6 +392,53 @@ for x in sys.stdin:
 """
     compare_scripts(run_pyp(["--explain", "n"]), script2)
 
+    config_mock.return_value = """
+f = lambda x: x
+n = int(x)
+o = f(n) + 1
+p = f(o) + 3
+q = f(p) + 5
+"""
+    assert run_pyp("p", input="0\n7") == "4\n11\n"
+    assert run_pyp("q", input="0\n7") == "9\n16\n"
+
+    script3 = r"""
+#!/usr/bin/env python3
+import sys
+f = lambda x: x
+for x in sys.stdin:
+    x = x.rstrip('\n')
+    n = int(x)
+    o = f(n) + 1
+    p = f(o) + 3
+    q = f(p) + 5
+    if q is not None:
+        print(q)
+"""
+    compare_scripts(run_pyp(["--explain", "q"]), script3)
+
+    config_mock.return_value = """
+ilines = (z.rstrip() for z in stdin)
+class Indexable:
+    ...
+idxgen = Indexable(ilines)
+"""
+    script4 = r"""
+#!/usr/bin/env python3
+import sys
+from pyp import pypprint
+
+class Indexable:
+    ...
+stdin = sys.stdin
+ilines = (z.rstrip() for z in stdin)
+idxgen = Indexable(ilines)
+output = idxgen[1]
+if output is not None:
+    pypprint(output)
+"""
+    compare_scripts(run_pyp(["--explain", "idxgen[1]"]), script4)
+
 
 @patch("pyp.get_config_contents")
 def test_config_invalid(config_mock):
