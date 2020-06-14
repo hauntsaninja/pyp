@@ -117,9 +117,15 @@ class _NameFinder(ast.NodeVisitor):
         self.visit_function_helper(node)
 
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
-        if node.name:
-            self.defined[-1].add(node.name)
-        self.generic_visit(node)
+        if not node.name or node.name in self.defined[-1]:
+            self.generic_visit(node)
+            return
+
+        assert node.name is not None
+        self.flexible_visit(node.type)
+        self.defined[-1].add(node.name)
+        self.flexible_visit(node.body)
+        self.defined[-1].remove(node.name)
 
 
 def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str]]:

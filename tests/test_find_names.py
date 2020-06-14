@@ -67,8 +67,8 @@ def test_weird_assignments():
 
 def test_more_control_flow():
     check_find_names("try: ...\nexcept: ...", set(), set())
-    check_find_names("try: raise\nexcept Exception as e: ...", {"e"}, {"Exception"})
-    check_find_names("try: raise\nexcept e as e: ...", {"e"}, {"e"})
+    check_find_names("try: raise\nexcept Exception as e: print(e)", set(), {"Exception", "print"})
+    check_find_names("try: raise\nexcept e as e: print(e)", set(), {"e", "print"})
     check_find_names("try: x = 1\nexcept: pass", {"x"}, set())
 
     # with and without confirm for readability, since we need to raise to hit branches
@@ -80,10 +80,14 @@ def test_more_control_flow():
     check_find_names("try:\n x = 1\n raise\nexcept: y\nfinally: x", {"x"}, {"y"})
 
     check_find_names("try: x = 1\nexcept: y\nfinally: z", {"x"}, {"y", "z"})
-    check_find_names("try: x\nexcept ValueError as e: z = e", {"e", "z"}, {"ValueError", "x"})
+    check_find_names("try: x\nexcept ValueError as e: z = e", {"z"}, {"ValueError", "x"})
     check_find_names(
-        "try: x\nexcept Exception as e: z = e\nfinally: y", {"e", "z"}, {"Exception", "x", "y"}
+        "try: x\nexcept Exception as e: z = e\nfinally: y", {"z"}, {"Exception", "x", "y"}
     )
+
+    check_find_names("try: raise\nexcept Exception as e: ...\ne", set(), {"Exception", "e"})
+    check_find_names("try: raise\nexcept Exception as e: f = e\nf", {"f"}, {"Exception"})
+
     check_find_names("with a as x: x", {"x"}, {"a"})
     check_find_names("with a as x, b as y: x", {"x", "y"}, {"a", "b"})
     check_find_names("with a as b, b as c: c", {"b", "c"}, {"a"})
