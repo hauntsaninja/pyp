@@ -45,7 +45,8 @@ class NameFinder(ast.NodeVisitor):
     A top-level defined name is any name that is stored to in the top-level scopes of ``trees``.
     An undefined name is any name that is loaded before it is defined (in any scope).
 
-    Note that we ignore deletes. Note used builtins will appear in undefined names.
+    Notes: a) we ignore deletes, b) used builtins will appear in undefined names, c) this logic
+    doesn't fully support comprehension / nonlocal / global / late-binding scopes.
 
     """
 
@@ -87,6 +88,13 @@ class NameFinder(ast.NodeVisitor):
         # Ignore deletes, see docstring
         self.generic_visit(node)
 
+    def visit_Global(self, node: ast.Global) -> None:
+        self._scopes[-1] |= self._scopes[0] & set(node.names)
+
+    def visit_Nonlocal(self, node: ast.Nonlocal) -> None:
+        if len(self._scopes) >= 2:
+            self._scopes[-1] |= self._scopes[-2] & set(node.names)
+
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
         if isinstance(node.target, ast.Name):
             # TODO: think about global, nonlocal
@@ -111,10 +119,11 @@ class NameFinder(ast.NodeVisitor):
         self._scopes.append(set())
         self.flexible_visit(node.body)
         self._scopes.pop()
-
+        # Classes are not okay with self-reference, so define ``name`` afterwards
         self._scopes[-1].add(node.name)
 
     def visit_function_helper(self, node: Any, name: Optional[str] = None) -> None:
+        # Functions are okay with recursion, but not self-reference while defining default values
         self.flexible_visit(node.args)
         if name is not None:
             self._scopes[-1].add(name)
@@ -138,12 +147,14 @@ class NameFinder(ast.NodeVisitor):
         self.visit_function_helper(node)
 
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        # ExceptHandler's name is scoped to the handler. If name exists and the name is not already
+        # defined, we'll define then undefine it to mimic the scope.
         if not node.name or node.name in self._scopes[-1]:
             self.generic_visit(node)
             return
 
-        assert node.name is not None
         self.flexible_visit(node.type)
+        assert node.name is not None
         self._scopes[-1].add(node.name)
         self.flexible_visit(node.body)
         self._scopes[-1].remove(node.name)

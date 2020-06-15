@@ -29,7 +29,8 @@ def check_find_names(
         # (if we hit another exception first, we fix the test!)
         with pytest.raises(NameError) as e:
             exec(code, exec_locals)
-        assert re.search(r"name '(\w+)' is not", e.value.args[0]).group(1) in actually_undefined
+        undefined_var = re.search(r"(name|variable) '(\w+)'", e.value.args[0]).group(2)
+        assert undefined_var in actually_undefined
     else:
         try:
             exec(code, exec_locals)
@@ -197,6 +198,76 @@ def test_definitions():
     check_find_names("class A: A", {"A"}, {"A"})
     check_find_names("@A\nclass A: ...", {"A"}, {"A"})
     check_find_names("@A\nclass B: A = 1", {"B"}, {"A"})
+
+
+def test_scope():
+    check_find_names("def f(): x += 1\nf()", {"f"}, {"x"})
+    check_find_names("x = 5\ndef f(): x += 1\nf()", {"f", "x"}, {"x"})
+    check_find_names("x = 5\ndef f():\n  x\n  x += 1\nf()", {"f", "x"}, {"x"})
+    check_find_names("x = 5\ndef f():\n  x = 3\n  x += 1\nf()", {"f", "x"}, set())
+    check_find_names("def f():\n  global x\n  x += 1\nf()", {"f"}, {"x"})
+    check_find_names("x = 5\ndef f():\n  global x\n  x += 1\nf()", {"f", "x"}, set())
+    check_find_names(
+        """
+a = 1
+def b(c):
+    d = (a, b, c)
+    e
+    def f(g):
+        h = (a, b, c, d, e, f, g)
+        i = 5
+        def j(k):
+            (a, b, c, d, e, f, g, h, i, j, k)
+b(a)
+""",
+        {"a", "b"},
+        {"e"},
+    )
+    check_find_names(
+        """
+a = 1
+b = 2
+c = 3
+def d():
+    a += 1
+    global b
+    b += 1
+    global c
+    c += 1
+    e = 1
+    f = 1
+    def h():
+        c += 1
+        e += 1
+        nonlocal f
+        f += 1
+        nonlocal i
+        i += 1
+""",
+        {"a", "b", "c", "d"},
+        {"a", "c", "e", "i"},
+        confirm=False,
+    )
+
+
+@pytest.mark.xfail(reason="do not currently fully support scopes")
+def test_scope_failures():
+    check_find_names("def f():\n  global x\n  x += 1\nx = 5\nf()", {"f", "x"}, set())
+    check_find_names(
+        """
+def f():
+    def g():
+        nonlocal h
+        h += 1
+    h = 5
+    g()
+f()
+""",
+        {"f"},
+        set(),
+    )
+    check_find_names("[z for z in (1,2,3)]; z", set(), {"z"})
+    check_find_names("def f():\n  def g(): i\n  i = 5\n  g()\nf()", {"f"}, set())
 
 
 @pytest.mark.xfail(reason="do not currently support deletes")
