@@ -39,11 +39,27 @@ def pypprint(*args, **kwargs):  # type: ignore
         print(x, **kwargs)
 
 
-class _NameFinder(ast.NodeVisitor):
-    def __init__(self) -> None:
-        self.defined: List[Set[str]] = [set()]
+class NameFinder(ast.NodeVisitor):
+    """Finds undefined names, top-level defined names and wildcard imports in the given AST.
+
+    A top-level defined name is any name that is stored to in the top-level scopes of ``trees``.
+    An undefined name is any name that is loaded before it is defined (in any scope).
+
+    Note that we ignore deletes. Note used builtins will appear in undefined names.
+
+    """
+
+    def __init__(self, *trees: ast.AST) -> None:
+        self._scopes: List[Set[str]] = [set()]
         self.undefined: Set[str] = set()
         self.wildcard_imports: List[str] = []
+        for tree in trees:
+            self.visit(tree)
+        assert len(self._scopes) == 1
+
+    @property
+    def top_level_defined(self) -> Set[str]:
+        return self._scopes[0]
 
     def flexible_visit(self, value: Any) -> None:
         if isinstance(value, list):
@@ -64,23 +80,23 @@ class _NameFinder(ast.NodeVisitor):
 
     def visit_Name(self, node: ast.Name) -> None:
         if isinstance(node.ctx, ast.Load):
-            if all(node.id not in d for d in self.defined):
+            if all(node.id not in d for d in self._scopes):
                 self.undefined.add(node.id)
         elif isinstance(node.ctx, ast.Store):
-            self.defined[-1].add(node.id)
+            self._scopes[-1].add(node.id)
         # Ignore deletes, see docstring
         self.generic_visit(node)
 
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
         if isinstance(node.target, ast.Name):
             # TODO: think about global, nonlocal
-            if node.target.id not in self.defined[-1]:
+            if node.target.id not in self._scopes[-1]:
                 self.undefined.add(node.target.id)
         self.generic_visit(node)
 
     def visit_alias(self, node: ast.alias) -> None:
         if node.name != "*":
-            self.defined[-1].add(node.asname if node.asname is not None else node.name)
+            self._scopes[-1].add(node.asname if node.asname is not None else node.name)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         if node.module is not None and "*" in (a.name for a in node.names):
@@ -92,23 +108,23 @@ class _NameFinder(ast.NodeVisitor):
         self.flexible_visit(node.bases)
         self.flexible_visit(node.keywords)
 
-        self.defined.append(set())
+        self._scopes.append(set())
         self.flexible_visit(node.body)
-        self.defined.pop()
+        self._scopes.pop()
 
-        self.defined[-1].add(node.name)
+        self._scopes[-1].add(node.name)
 
     def visit_function_helper(self, node: Any, name: Optional[str] = None) -> None:
         self.flexible_visit(node.args)
         if name is not None:
-            self.defined[-1].add(name)
+            self._scopes[-1].add(name)
 
-        self.defined.append(set())
+        self._scopes.append(set())
         for arg_node in ast.iter_child_nodes(node.args):
             if isinstance(arg_node, ast.arg):
-                self.defined[-1].add(arg_node.arg)
+                self._scopes[-1].add(arg_node.arg)
         self.flexible_visit(node.body)
-        self.defined.pop()
+        self._scopes.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         self.flexible_visit(node.decorator_list)
@@ -122,29 +138,15 @@ class _NameFinder(ast.NodeVisitor):
         self.visit_function_helper(node)
 
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
-        if not node.name or node.name in self.defined[-1]:
+        if not node.name or node.name in self._scopes[-1]:
             self.generic_visit(node)
             return
 
         assert node.name is not None
         self.flexible_visit(node.type)
-        self.defined[-1].add(node.name)
+        self._scopes[-1].add(node.name)
         self.flexible_visit(node.body)
-        self.defined[-1].remove(node.name)
-
-
-def find_names(tree: ast.AST) -> Tuple[Set[str], Set[str], List[str]]:
-    """Returns a tuple of defined, undefined names and wildcard imports in the given AST.
-
-    A defined name is any name that is stored to in the top-level scope of ``tree``.
-    An undefined name is any name that is loaded before it is defined (in any scope).
-
-    Note that we ignore deletes. Note used builtins will appear in undefined names.
-
-    """
-    f = _NameFinder()
-    f.visit(tree)
-    return f.defined[0], f.undefined, f.wildcard_imports
+        self._scopes[-1].remove(node.name)
 
 
 def dfs_walk(node: ast.AST) -> Iterator[ast.AST]:
@@ -219,9 +221,8 @@ class PypConfig:
                     "Config only supports a subset of Python at top level; "
                     f"unsupported construct ({node_type}) on line {part.lineno}"
                 )
-            f = _NameFinder()
-            f.visit(part)
-            for name in f.defined[0]:
+            f = NameFinder(part)
+            for name in f.top_level_defined:
                 if self.name_to_def.get(name, index) != index:
                     raise PypError(f"Config has multiple definitions of {repr(name)}")
                 self.name_to_def[name] = index
@@ -260,14 +261,10 @@ class PypTransform:
         self.tree = parse_input(code)
         self.after_tree = parse_input(after)
 
-        self.defined: Set[str] = set()
-        self.undefined: Set[str] = set()
-        self.wildcard_imports: List[str] = []
-        for t in (self.before_tree, self.tree, self.after_tree):
-            _def, _undef, _wildcard_imports = find_names(t)
-            self.undefined |= _undef - self.defined
-            self.defined |= _def
-            self.wildcard_imports.extend(_wildcard_imports)
+        f = NameFinder(self.before_tree, self.tree, self.after_tree)
+        self.defined: Set[str] = f.top_level_defined
+        self.undefined: Set[str] = f.undefined
+        self.wildcard_imports: List[str] = f.wildcard_imports
 
         self.define_pypprint = define_pypprint
         self.config = config

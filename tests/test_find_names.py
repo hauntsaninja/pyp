@@ -4,7 +4,7 @@ import sys
 from typing import List, Optional, Set
 
 import pytest
-from pyp import find_names
+from pyp import NameFinder
 
 
 def check_find_names(
@@ -14,7 +14,10 @@ def check_find_names(
     wildcard_imports: Optional[List[str]] = None,
     confirm: bool = True,
 ) -> None:
-    assert (defined, undefined, wildcard_imports or []) == find_names(ast.parse(code))
+    names = NameFinder(ast.parse(code))
+    assert defined == names.top_level_defined
+    assert undefined == names.undefined
+    assert (wildcard_imports or []) == names.wildcard_imports
 
     if not confirm:
         return
