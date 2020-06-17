@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+- Wildcard imports in code passed to pyp are now supported
+- Name finding now does basic scope analysis. What does this mean for you? Lambdas are more
+convenient to use, you can use `global` in your config, unused name detection for exception handlers
+is slightly more accurate, etc
+- Config definition finding better reuses name finding code. This means you can do horrible things
+like using walrus expressions in default values, and things should just work
+- Top-level conditionals in config now work better. We also now forbid top-level loops, since
+they're not very useful and I want to reserve the right to give them magical semantics
+- Tracebacks without AST unparsing are improved
+
 ## [v0.3.2]
 
 - Improved reconstructed tracebacks when errors occur in statements with nested child statements
