@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.3.3]
 
 - Wildcard imports in code passed to pyp are now supported
 - Name finding now does basic scope analysis. What does this mean for you? Lambdas are more
