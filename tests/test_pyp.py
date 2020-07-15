@@ -10,8 +10,9 @@ import traceback
 from typing import List, Optional, Union
 from unittest.mock import patch
 
-import pyp
 import pytest
+
+import pyp
 
 # ====================
 # Helpers

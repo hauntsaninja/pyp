@@ -4,6 +4,7 @@ import sys
 from typing import List, Optional, Set
 
 import pytest
+
 from pyp import NameFinder
 
 
