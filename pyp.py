@@ -645,9 +645,7 @@ def parse_options(args: List[str]) -> argparse.Namespace:
         action="store_true",
         help="Defines pypprint, if used, instead of importing it from pyp.",
     )
-    parser.add_argument(
-        "--version", action="version", version=f"pyp {__version__}",
-    )
+    parser.add_argument("--version", action="version", version=f"pyp {__version__}")
     return parser.parse_args(args)
 
 

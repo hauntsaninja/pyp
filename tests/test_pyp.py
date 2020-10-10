@@ -112,7 +112,7 @@ def test_examples():
     )
     compare_command(example_cmd="echo 'sqrt(9.0)' | bc", pyp_cmd="pyp 'sqrt(9)'")
     compare_command(
-        example_cmd="x=README.md; echo ${x##*.}", pyp_cmd='''pyp "Path('README.md').suffix[1:]"''',
+        example_cmd="x=README.md; echo ${x##*.}", pyp_cmd='''pyp "Path('README.md').suffix[1:]"'''
     )
     compare_command(
         example_cmd="echo '  1 a\n  2 b'", pyp_cmd="""pyp 'f"{idx+1: >3} {x}"'""", input="a\nb"
