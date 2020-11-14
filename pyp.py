@@ -549,59 +549,59 @@ def run_pyp(args: argparse.Namespace) -> None:
     if args.explain:
         print(config.shebang)
         print(unparse(tree))
-    else:
+        return
+    try:
+        exec(compile(tree, filename="<pyp>", mode="exec"), {})
+    except Exception as e:
         try:
-            exec(compile(tree, filename="<pyp>", mode="exec"), {})
-        except Exception as e:
-            try:
-                line_to_node: Dict[int, ast.AST] = {}
-                for node in dfs_walk(tree):
-                    line_to_node.setdefault(getattr(node, "lineno", -1), node)
+            line_to_node: Dict[int, ast.AST] = {}
+            for node in dfs_walk(tree):
+                line_to_node.setdefault(getattr(node, "lineno", -1), node)
 
-                def code_for_line(lineno: int) -> str:
-                    node = line_to_node[lineno]
-                    # Don't unparse nested child statements. Note this destroys the tree.
-                    for _, value in ast.iter_fields(node):
-                        if isinstance(value, list) and value and isinstance(value[0], ast.stmt):
-                            value.clear()
-                    return unparse(node, short_fallback=True).strip()
+            def code_for_line(lineno: int) -> str:
+                node = line_to_node[lineno]
+                # Don't unparse nested child statements. Note this destroys the tree.
+                for _, value in ast.iter_fields(node):
+                    if isinstance(value, list) and value and isinstance(value[0], ast.stmt):
+                        value.clear()
+                return unparse(node, short_fallback=True).strip()
 
-                # Time to commit several sins against CPython implementation details
-                tb_except = traceback.TracebackException(
-                    type(e), e, e.__traceback__.tb_next  # type: ignore
-                )
-                for fs in tb_except.stack:
-                    if fs.filename == "<pyp>":
-                        fs._line = code_for_line(fs.lineno)  # type: ignore[attr-defined]
-                        fs.lineno = "PYP_REDACTED"  # type: ignore[assignment]
+            # Time to commit several sins against CPython implementation details
+            tb_except = traceback.TracebackException(
+                type(e), e, e.__traceback__.tb_next  # type: ignore
+            )
+            for fs in tb_except.stack:
+                if fs.filename == "<pyp>":
+                    fs._line = code_for_line(fs.lineno)  # type: ignore[attr-defined]
+                    fs.lineno = "PYP_REDACTED"  # type: ignore[assignment]
 
-                tb_format = tb_except.format()
-                assert "Traceback (most recent call last)" in next(tb_format)
+            tb_format = tb_except.format()
+            assert "Traceback (most recent call last)" in next(tb_format)
 
-                message = "Possible reconstructed traceback (most recent call last):\n"
-                message += "".join(tb_format).strip("\n")
-                message = message.replace(", line PYP_REDACTED", "")
-            except Exception:
-                message = "".join(traceback.format_exception_only(type(e), e)).strip()
-            if isinstance(e, ModuleNotFoundError):
+            message = "Possible reconstructed traceback (most recent call last):\n"
+            message += "".join(tb_format).strip("\n")
+            message = message.replace(", line PYP_REDACTED", "")
+        except Exception:
+            message = "".join(traceback.format_exception_only(type(e), e)).strip()
+        if isinstance(e, ModuleNotFoundError):
+            message += (
+                "\n\nNote pyp treats undefined names as modules to automatically import. "
+                "Perhaps you forgot to define something or PYP_CONFIG_PATH is set incorrectly?"
+            )
+        if args.before and isinstance(e, NameError):
+            var = str(e)
+            var = var[var.find("'") + 1 : var.rfind("'")]
+            if var in ("lines", "stdin"):
                 message += (
-                    "\n\nNote pyp treats undefined names as modules to automatically import. "
-                    "Perhaps you forgot to define something or PYP_CONFIG_PATH is set incorrectly?"
+                    "\n\nNote code in `--before` runs before any magic variables are defined "
+                    "and should not process input. Your command should work by simply removing "
+                    "`--before`, so instead passing in multiple statements in the main section "
+                    "of your code."
                 )
-            if args.before and isinstance(e, NameError):
-                var = str(e)
-                var = var[var.find("'") + 1 : var.rfind("'")]
-                if var in ("lines", "stdin"):
-                    message += (
-                        "\n\nNote code in `--before` runs before any magic variables are defined "
-                        "and should not process input. Your command should work by simply removing "
-                        "`--before`, so instead passing in multiple statements in the main section "
-                        "of your code."
-                    )
-            raise PypError(
-                "Code raised the following exception, consider using --explain to investigate:\n\n"
-                f"{message}"
-            ) from e
+        raise PypError(
+            "Code raised the following exception, consider using --explain to investigate:\n\n"
+            f"{message}"
+        ) from e
 
 
 def parse_options(args: List[str]) -> argparse.Namespace:
