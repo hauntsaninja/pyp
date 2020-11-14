@@ -525,7 +525,7 @@ def unparse(tree: ast.AST, short_fallback: bool = False) -> str:
     try:
         import astunparse  # type: ignore
 
-        return astunparse.unparse(tree)  # type: ignore
+        return astunparse.unparse(tree)
     except ImportError:
         pass
     if short_fallback:
@@ -570,13 +570,16 @@ def run_pyp(args: argparse.Namespace) -> None:
                 tb_except = traceback.TracebackException(
                     type(e), e, e.__traceback__.tb_next  # type: ignore
                 )
-                tb_except.exc_traceback = None  # type: ignore
                 for fs in tb_except.stack:
                     if fs.filename == "<pyp>":
-                        fs._line = code_for_line(fs.lineno)  # type: ignore
-                        fs.lineno = "PYP_REDACTED"  # type: ignore
+                        fs._line = code_for_line(fs.lineno)  # type: ignore[attr-defined]
+                        fs.lineno = "PYP_REDACTED"  # type: ignore[assignment]
+
+                tb_format = tb_except.format()
+                assert "Traceback (most recent call last)" in next(tb_format)
+
                 message = "Possible reconstructed traceback (most recent call last):\n"
-                message += "".join(tb_except.format()).strip("\n")
+                message += "".join(tb_format).strip("\n")
                 message = message.replace(", line PYP_REDACTED", "")
             except Exception:
                 message = "".join(traceback.format_exception_only(type(e), e)).strip()
