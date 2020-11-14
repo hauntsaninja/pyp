@@ -9,7 +9,7 @@ import sys
 import textwrap
 import traceback
 from collections import defaultdict
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, cast
 
 __all__ = ["pypprint"]
 __version__ = "0.3.3"
@@ -525,7 +525,7 @@ def unparse(tree: ast.AST, short_fallback: bool = False) -> str:
     try:
         import astunparse  # type: ignore
 
-        return astunparse.unparse(tree)
+        return cast(str, astunparse.unparse(tree))
     except ImportError:
         pass
     if short_fallback:
