@@ -54,6 +54,7 @@ class NameFinder(ast.NodeVisitor):
         self._scopes: List[Set[str]] = [set()]
         self.undefined: Set[str] = set()
         self.wildcard_imports: List[str] = []
+        self.lines_count = 0
         for tree in trees:
             self.visit(tree)
         assert len(self._scopes) == 1
@@ -80,6 +81,8 @@ class NameFinder(ast.NodeVisitor):
             self.flexible_visit(value)
 
     def visit_Name(self, node: ast.Name) -> None:
+        if node.id in ("lines"):
+            self.lines_count += 1
         if isinstance(node.ctx, ast.Load):
             if all(node.id not in d for d in self._scopes):
                 self.undefined.add(node.id)
@@ -276,7 +279,7 @@ class PypTransform:
         self.defined: Set[str] = f.top_level_defined
         self.undefined: Set[str] = f.undefined
         self.wildcard_imports: List[str] = f.wildcard_imports
-
+        self.lines_count = f.lines_count
         self.define_pypprint = define_pypprint
         self.config = config
 
@@ -417,6 +420,9 @@ class PypTransform:
 
             if input_var == "stdin":
                 input_assign = ast.parse(f"{input_var} = sys.stdin")
+            elif self.lines_count == 1:
+                # little optimization. If lines is used once, we can define it as a generator and consume it
+                input_assign = ast.parse(f"{input_var} = (x.rstrip('\\n') for x in sys.stdin)")
             else:
                 input_assign = ast.parse(f"{input_var} = [x.rstrip('\\n') for x in sys.stdin]")
 
