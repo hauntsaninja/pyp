@@ -39,6 +39,34 @@ def pypprint(*args, **kwargs):  # type: ignore
         print(x, **kwargs)
 
 
+class Indexable:
+
+    def __init__(self, it):
+        self.it = iter(it)
+        self._computed = []
+        self._exhausted = False
+
+    def __getitem__(self, index):
+        try:
+            max_idx = index.stop
+        except AttributeError:
+            max_idx = index
+        n = max_idx - len(self._computed) + 1
+        if n > 0:
+            self._computed.extend(itertools.islice(self.it, n))
+        return self._computed[index]
+
+    def __iter__(self):
+        if self._exhausted:
+            for element in self._computed:
+                yield element
+        else:
+            for element in self.it:
+                self._computed.append(element)
+                yield element
+            self._exhausted = True
+
+
 class NameFinder(ast.NodeVisitor):
     """Finds undefined names, top-level defined names and wildcard imports in the given AST.
 
@@ -54,7 +82,6 @@ class NameFinder(ast.NodeVisitor):
         self._scopes: List[Set[str]] = [set()]
         self.undefined: Set[str] = set()
         self.wildcard_imports: List[str] = []
-        self.lines_count = 0
         for tree in trees:
             self.visit(tree)
         assert len(self._scopes) == 1
@@ -81,8 +108,6 @@ class NameFinder(ast.NodeVisitor):
             self.flexible_visit(value)
 
     def visit_Name(self, node: ast.Name) -> None:
-        if node.id in ("lines"):
-            self.lines_count += 1
         if isinstance(node.ctx, ast.Load):
             if all(node.id not in d for d in self._scopes):
                 self.undefined.add(node.id)
@@ -279,7 +304,6 @@ class PypTransform:
         self.defined: Set[str] = f.top_level_defined
         self.undefined: Set[str] = f.undefined
         self.wildcard_imports: List[str] = f.wildcard_imports
-        self.lines_count = f.lines_count
         self.define_pypprint = define_pypprint
         self.config = config
 
@@ -420,11 +444,8 @@ class PypTransform:
 
             if input_var == "stdin":
                 input_assign = ast.parse(f"{input_var} = sys.stdin")
-            elif self.lines_count == 1:
-                # little optimization. If lines is used once, we can define it as a generator and consume it
-                input_assign = ast.parse(f"{input_var} = (x.rstrip('\\n') for x in sys.stdin)")
             else:
-                input_assign = ast.parse(f"{input_var} = [x.rstrip('\\n') for x in sys.stdin]")
+                input_assign = ast.parse(f"{input_var} = Indexable((x.rstrip('\\n') for x in sys.stdin))")
 
             self.tree.body = input_assign.body + self.tree.body
             self.use_pypprint_for_implicit_print()
@@ -464,6 +485,7 @@ class PypTransform:
         # Optimisation: we will almost always define sys and pypprint. However, in order for us to
         # get to `import sys`, we'll need to examine our wildcard imports, which in the presence
         # of config, could be slow.
+
         if "pypprint" in self.undefined:
             pypprint_def = (
                 inspect.getsource(pypprint) if self.define_pypprint else "from pyp import pypprint"
@@ -473,6 +495,8 @@ class PypTransform:
         if "sys" in self.undefined:
             self.before_tree.body = ast.parse("import sys").body + self.before_tree.body
             self.undefined.remove("sys")
+
+        self.before_tree.body += ast.parse("from pyp import Indexable").body
         # Now short circuit if we can
         if not self.undefined:
             return
