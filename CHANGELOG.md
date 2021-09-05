@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- Reduce reconstructed traceback's reliance on CPython implementation details
+- Fix automatic print behaviour in edge case interaction with scopes
+
 ## [v0.3.3]
 
 - Wildcard imports in code passed to pyp are now supported
@@ -11,6 +16,7 @@ like using walrus expressions in default values, and things should just work
 - Top-level conditionals in config now work better. We also now forbid top-level loops, since
 they're not very useful and I want to reserve the right to give them magical semantics
 - Tracebacks without AST unparsing are improved
+- Use of `pp` is now properly recognised as disabling automatic printing
 
 ## [v0.3.2]
 
