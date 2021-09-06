@@ -373,7 +373,7 @@ class PypTransform:
         """
         MAGIC_VARS = {
             "index": {"i", "idx", "index"},
-            "loop": {"line", "x", "l", "s"},
+            "loop": {"line", "x", "l"},
             "input": {"lines", "stdin"},
         }
         possible_vars = {typ: names & self.undefined for typ, names in MAGIC_VARS.items()}
@@ -617,7 +617,7 @@ def parse_options(args: List[str]) -> argparse.Namespace:
             "Easily run Python at the shell!\n\n"
             "For help and examples, see https://github.com/hauntsaninja/pyp\n\n"
             "Cheatsheet:\n"
-            "- Use `line`, `x`, `l`, or `s` for a line in the input. Use `i`, `idx` or `index` "
+            "- Use `x`, `l` or `line` for a line in the input. Use `i`, `idx` or `index` "
             "for the index\n"
             "- Use `lines` to get a list of rstripped lines\n"
             "- Use `stdin` to get sys.stdin\n"

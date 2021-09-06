@@ -145,7 +145,7 @@ def test_magic_variable_failures():
         run_pyp("pyp 'print(x); print(len(lines))'")
 
     with pytest.raises(pyp.PypError, match="Multiple candidates for loop"):
-        run_pyp("pyp 'print(x); print(s)'")
+        run_pyp("pyp 'print(x); print(l)'")
 
     with pytest.raises(pyp.PypError, match="Multiple candidates for input"):
         run_pyp("pyp 'stdin; lines'")
