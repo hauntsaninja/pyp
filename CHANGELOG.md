@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+- Configuration now allows the use of magic variables, effectively allowing you to define your own
+magic variables. See README.md for details
+- Explicit printing in used config functions will now disable automatic printing
+- Config definitions can now use things defined from wildcard imports. Automatic imports now work
+in config as well
+- Removed `s` as a magic variable. If you miss it, you can redefine it in your config using `s = x`
+
 ## [v0.3.4]
 
 - Reduce reconstructed traceback's reliance on CPython implementation details
