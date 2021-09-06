@@ -311,12 +311,17 @@ class PypTransform:
                 del body[-1]
                 return True
             if not isinstance(body[-1], ast.Expr):
-                # If the last thing in the tree is a statement that has a body (and doesn't have an
-                # orelse, since users could expect the print in that branch), recursively look
-                # for a standalone expression.
-                # Technically, we should check to see that we're not entering a different scope,
-                # e.g., ``pyp 'x' 'def f(x): (output := x) + 1' --explain`` looks problematic.
-                if hasattr(body[-1], "body") and not getattr(body[-1], "orelse", []):
+                if (
+                    # If the last thing in the tree is a statement that has a body
+                    hasattr(body[-1], "body")
+                    # and doesn't have an orelse, since users could expect the print in that branch
+                    and not getattr(body[-1], "orelse", [])
+                    # and doesn't enter a new scope
+                    and not isinstance(
+                        body[-1], (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+                    )
+                ):
+                    # ...then recursively look for a standalone expression
                     return inner(body[-1].body, use_pypprint)  # type: ignore
                 return False
 
