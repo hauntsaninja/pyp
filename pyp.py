@@ -169,6 +169,21 @@ def dfs_walk(node: ast.AST) -> Iterator[ast.AST]:
         yield node
 
 
+MAGIC_VARS = {
+    "index": {"i", "idx", "index"},
+    "loop": {"line", "x", "l"},
+    "input": {"lines", "stdin"},
+}
+
+
+def is_magic_var(name: str) -> bool:
+    return any(name in vars for vars in MAGIC_VARS.values())
+
+
+class PypError(Exception):
+    pass
+
+
 def get_config_contents() -> str:
     """Returns the empty string if no config file is specified."""
     config_file = os.environ.get("PYP_CONFIG_PATH")
@@ -179,10 +194,6 @@ def get_config_contents() -> str:
             return f.read()
     except FileNotFoundError as e:
         raise PypError(f"Config file not found at PYP_CONFIG_PATH={config_file}") from e
-
-
-class PypError(Exception):
-    pass
 
 
 class PypConfig:
@@ -236,6 +247,8 @@ class PypConfig:
             for name in f.top_level_defined:
                 if self.name_to_def.get(name, index) != index:
                     raise PypError(f"Config has multiple definitions of {repr(name)}")
+                if is_magic_var(name):
+                    raise PypError(f"Config cannot redefine built-in magic variable {repr(name)}")
                 self.name_to_def[name] = index
             self.requires[index] = f.undefined
             self.wildcard_imports.extend(f.wildcard_imports)
@@ -371,11 +384,6 @@ class PypTransform:
         How we do this depends on which magic variables are used.
 
         """
-        MAGIC_VARS = {
-            "index": {"i", "idx", "index"},
-            "loop": {"line", "x", "l"},
-            "input": {"lines", "stdin"},
-        }
         possible_vars = {typ: names & self.undefined for typ, names in MAGIC_VARS.items()}
 
         if (possible_vars["loop"] or possible_vars["index"]) and possible_vars["input"]:
