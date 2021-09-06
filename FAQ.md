@@ -3,6 +3,7 @@
 ### Contents
 
 - [I'm running into issues with newlines / complicated statements](#im-running-into-issues-with-newlines--complicated-statements)
+- [What's in your config?](#whats-in-your-config)
 - [What are pyp's dependencies?](#what-are-pyps-dependencies)
 - [Can I customise the shebang on the output of `--script`?](#can-i-customise-the-shebang-on-the-output-of---script)
 - [The output of `--explain` is a little weirdly formatted](#the-output-of---explain-is-a-little-weirdly-formatted)
@@ -46,6 +47,21 @@ $ pyp --explain '
 Using an ANSI C-quoted string:
 ```
 $ pyp --explain $'if int(x) >= 100:\n  x += " is big"\n  print(x)\nelse:\n  print(x + " is small")'
+```
+
+#### What's in your config?
+
+My config is pretty simple:
+```py
+import numpy as np
+
+n = int(x)
+j = json.loads(stdin)
+f = x.split()
+# like f, but returns None if index is of bounds
+ff = defaultdict(lambda: None, dict(enumerate(x.split())))
+
+d = defaultdict(list)
 ```
 
 #### What are pyp's dependencies?
