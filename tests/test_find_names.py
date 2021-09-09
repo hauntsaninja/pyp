@@ -125,10 +125,21 @@ def test_walrus():
     check_find_names("f((f := lambda x: x))", {"f"}, {"f"})
     check_find_names("f((f := lambda x: (x, y)))", {"f"}, {"f", "y"})
     check_find_names("if (x := 1): print(x)", {"x"}, {"print"})
-    check_find_names("(y for x in xx if (y := x) == 'foo')", {"x", "y"}, {"xx"})
     check_find_names("x: (x := 1) = 2", {"x"}, set())
     check_find_names("f'{(x := 1)} {x}'", {"x"}, set())
     check_find_names("class A((A := object)): ...", {"A"}, {"object"})
+
+    check_find_names("[(y := x) for x in xx]", {"y"}, {"xx"})
+    check_find_names("(y for x in xx if (y := x) == 'foo')", {"y"}, {"xx"})
+    check_find_names("[[(y := z) for z in x] for x in xx]", {"y"}, {"xx"})
+    check_find_names("[[[(y := z) for z in x] for x in xx] for x in xx]", {"y"}, {"xx"})
+    check_find_names("(lambda: [[(y := z) for z in x] for x in xx])()", set(), {"xx"})
+    check_find_names("[lambda: [[(y := z) for z in x] for x in xx] for x in xx]", set(), {"xx"})
+    check_find_names("[(lambda a=(x := 5): a) for _ in range(5)]", {"x"}, {"range"})
+
+    check_find_names("{(x := y): (y := 1) for _ in range(5)}", {"x", "y"}, {"y", "range"})
+    check_find_names("{(x := 1): (y := x) for _ in range(5)}", {"x", "y"}, {"range"})
+
     if sys.version_info >= (3, 9):
         check_find_names(
             "d1 = lambda i: i\n@(d2 := d1)\n@(d3 := d2)\ndef f(): ...",
@@ -144,14 +155,14 @@ def test_walrus():
 
 
 def test_comprehensions():
-    check_find_names("(x for x in y)", {"x"}, {"y"})
-    check_find_names("(x for x in x)", {"x"}, {"x"})
-    check_find_names("(x for xx in xxx for x in xx)", {"x", "xx"}, {"xxx"})
-    check_find_names("(x for x in xx for xx in xxx)", {"x", "xx"}, {"xx", "xxx"})
-    check_find_names("(x for x in xx if x > 0)", {"x"}, {"xx"})
-    check_find_names("[x for x in xx if x > 0]", {"x"}, {"xx"})
-    check_find_names("{x for x in xx if x > 0}", {"x"}, {"xx"})
-    check_find_names("{x: x for x in xx if x > 0}", {"x"}, {"xx"})
+    check_find_names("(x for x in y)", set(), {"y"})
+    check_find_names("(x for x in x)", set(), {"x"})
+    check_find_names("(x for xx in xxx for x in xx)", set(), {"xxx"})
+    check_find_names("(x for x in xx for xx in xxx)", set(), {"xx", "xxx"})
+    check_find_names("(x for x in xx if x > 0)", set(), {"xx"})
+    check_find_names("[x for x in xx if x > 0]", set(), {"xx"})
+    check_find_names("{x for x in xx if x > 0}", set(), {"xx"})
+    check_find_names("{x: x for x in xx if x > 0}", set(), {"xx"})
 
 
 def test_args():

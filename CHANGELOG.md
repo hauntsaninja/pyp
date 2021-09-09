@@ -8,6 +8,7 @@ magic variables. See README.md for details
 - Config definitions can now use things defined from wildcard imports. Automatic imports now work
 in config as well
 - Removed `s` as a magic variable. If you miss it, you can redefine it in your config using `s = x`
+- Implement correct scoping semantics for comprehensions, including with assignment expressions
 
 ## [v0.3.4]
 

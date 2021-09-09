@@ -52,6 +52,8 @@ class NameFinder(ast.NodeVisitor):
 
     def __init__(self, *trees: ast.AST) -> None:
         self._scopes: List[Set[str]] = [set()]
+        self._comprehension_scopes: List[int] = []
+
         self.undefined: Set[str] = set()
         self.wildcard_imports: List[str] = []
         for tree in trees:
@@ -72,8 +74,8 @@ class NameFinder(ast.NodeVisitor):
 
     def generic_visit(self, node: ast.AST) -> None:
         def order(f_v: Tuple[str, Any]) -> int:
-            # This ordering fixes comprehensions, loops, assignments
-            return {"generators": -2, "iter": -2, "value": -1}.get(f_v[0], 0)
+            # This ordering fixes comprehensions, dict comps, loops, assignments
+            return {"generators": -3, "iter": -3, "key": -2, "value": -1}.get(f_v[0], 0)
 
         # Adapted from ast.NodeVisitor.generic_visit, but re-orders traversal a little
         for _, value in sorted(ast.iter_fields(node), key=order):
@@ -101,6 +103,18 @@ class NameFinder(ast.NodeVisitor):
             if node.target.id not in self._scopes[-1]:
                 self.undefined.add(node.target.id)
         self.generic_visit(node)
+
+    def visit_NamedExpr(self, node: Any) -> None:
+        self.visit(node.value)
+        # PEP 572 has weird scoping rules
+        assert isinstance(node.target, ast.Name)
+        assert isinstance(node.target.ctx, ast.Store)
+        scope_index = len(self._scopes) - 1
+        comp_index = len(self._comprehension_scopes) - 1
+        while comp_index >= 0 and scope_index == self._comprehension_scopes[comp_index]:
+            scope_index -= 1
+            comp_index -= 1
+        self._scopes[scope_index].add(node.target.id)
 
     def visit_alias(self, node: ast.alias) -> None:
         if node.name != "*":
@@ -158,6 +172,18 @@ class NameFinder(ast.NodeVisitor):
         self._scopes[-1].add(node.name)
         self.flexible_visit(node.body)
         self._scopes[-1].remove(node.name)
+
+    def visit_comprehension_helper(self, node: Any) -> None:
+        self._comprehension_scopes.append(len(self._scopes))
+        self._scopes.append(set())
+        self.generic_visit(node)
+        self._scopes.pop()
+        self._comprehension_scopes.pop()
+
+    visit_ListComp = visit_comprehension_helper
+    visit_SetComp = visit_comprehension_helper
+    visit_GeneratorExp = visit_comprehension_helper
+    visit_DictComp = visit_comprehension_helper
 
 
 def dfs_walk(node: ast.AST) -> Iterator[ast.AST]:
