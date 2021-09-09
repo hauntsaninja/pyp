@@ -11,3 +11,14 @@ contribution, rather just how I'm choosing to manage this particular project.
 I want to ensure that pyp remains small, standalone, and most importantly,
 "magical, but never mysterious". In particular, the definition of "mysterious"
 can be subjective.  Thank you for understanding and for wanting to improve pyp!
+
+
+## Making a release
+
+- Update the changelog
+- Update the version in `__version__`
+- Update the version in `setup.py`
+- `rm -rf dist`
+- `python setup.py sdist bdist_wheel`
+- `twine upload dist/*`
+- Tag the release on Github
