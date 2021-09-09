@@ -363,6 +363,22 @@ smallarray()
 """
     compare_scripts(run_pyp(["--explain", "stdin; smallarray(); pass"]), script4)
 
+    # test using wildcard imports in config
+    config_mock.return_value = """
+from typing import *
+any = Any
+    """
+    script5 = """
+#!/usr/bin/env python3
+from typing import Any
+import sys
+any = Any
+stdin = sys.stdin
+stdin
+any
+"""
+    compare_scripts(run_pyp(["--explain", "stdin; any; pass"]), script5)
+
 
 @patch("pyp.get_config_contents")
 def test_config_magic_vars(config_mock):
