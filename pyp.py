@@ -12,7 +12,7 @@ from collections import defaultdict
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, cast
 
 __all__ = ["pypprint"]
-__version__ = "0.3.3"
+__version__ = "0.3.4"
 
 
 def pypprint(*args, **kwargs):  # type: ignore

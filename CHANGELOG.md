@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.3.4]
 
 - Reduce reconstructed traceback's reliance on CPython implementation details
 - Fix automatic print behaviour in edge case interaction with scopes

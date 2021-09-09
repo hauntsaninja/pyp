@@ -5,7 +5,7 @@ with open("README.md", "r") as f:
 
 setup(
     name="pypyp",
-    version="0.3.3",
+    version="0.3.4",
     author="Shantanu Jain",
     author_email="hauntsaninja@gmail.com",
     description="Easily run Python at the shell! Magical, but never mysterious.",
