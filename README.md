@@ -1,6 +1,6 @@
 # pyp
 
-[![Build Status](https://travis-ci.org/hauntsaninja/pyp.svg?branch=master)](https://travis-ci.org/hauntsaninja/pyp)
+[![Build Status](https://github.com/hauntsaninja/pyp/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/hauntsaninja/pyp/actions/workflows/tests.yml)
 [![Coverage Status](https://coveralls.io/repos/github/hauntsaninja/pyp/badge.svg?branch=master)](https://coveralls.io/github/hauntsaninja/pyp?branch=master)
 [![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 
