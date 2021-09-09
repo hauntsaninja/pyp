@@ -256,6 +256,35 @@ class PypConfig:
             self.wildcard_imports.extend(f.wildcard_imports)
 
 
+def can_lines_be_generator(*trees: ast.AST) -> bool:
+    class LinesFinder(ast.NodeVisitor):
+        def __init__(self) -> None:
+            self.lines_count = 0
+            self.valid_use = False
+            self.stack: List[ast.AST] = []
+
+        def visit(self, node: ast.AST) -> None:
+            self.stack.append(node)
+            super().visit(node)
+            self.stack.pop()
+
+        def visit_Name(self, node: ast.Name) -> None:
+            if node.id != "lines":
+                return
+            if len(self.stack) >= 2:
+                prev = self.stack[-2]
+                if (isinstance(prev, ast.comprehension) and prev.iter is node) or (
+                    isinstance(prev, ast.Call) and len(prev.args) >= 2 and prev.args[1] is node
+                ):
+                    self.valid_use = True
+            self.lines_count += 1
+
+    lf = LinesFinder()
+    for tree in trees:
+        lf.visit(tree)
+    return lf.lines_count == 1 and lf.valid_use
+
+
 class PypTransform:
     """PypTransform is responsible for transforming all input code.
 
@@ -478,8 +507,13 @@ class PypTransform:
 
             if input_var == "stdin":
                 input_assign = ast.parse(f"{input_var} = sys.stdin")
+            elif input_var == "lines":
+                if can_lines_be_generator(self.tree, self.after_tree):
+                    input_assign = ast.parse(f"{input_var} = (x.rstrip('\\n') for x in sys.stdin)")
+                else:
+                    input_assign = ast.parse(f"{input_var} = [x.rstrip('\\n') for x in sys.stdin]")
             else:
-                input_assign = ast.parse(f"{input_var} = [x.rstrip('\\n') for x in sys.stdin]")
+                raise AssertionError
 
             self.tree.body = input_assign.body + self.tree.body
             self.use_pypprint_for_implicit_print()
