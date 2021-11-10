@@ -16,6 +16,7 @@ can be subjective.  Thank you for understanding and for wanting to improve pyp!
 ## Making a release
 
 - Update the changelog
+- Update the version in `CHANGELOG.md`
 - Update the version in `__version__`
 - Update the version in `setup.py`
 - `rm -rf dist`

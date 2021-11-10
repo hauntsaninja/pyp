@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v1.0.0]
 
 - Configuration now allows the use of magic variables, effectively allowing you to define your own
 magic variables. See README.md for details
