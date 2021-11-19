@@ -46,7 +46,7 @@ class NameFinder(ast.NodeVisitor):
     An undefined name is any name that is loaded before it is defined (in any scope).
 
     Notes: a) we ignore deletes, b) used builtins will appear in undefined names, c) this logic
-    doesn't fully support comprehension / nonlocal / global / late-binding scopes.
+    doesn't fully support nonlocal / global / late-binding scopes.
 
     """
 
