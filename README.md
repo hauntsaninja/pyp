@@ -146,7 +146,7 @@ def p95(data):
 class PotentiallyUsefulClass: ...
 ```
 
-When attempting to define undefined names, pyp will statically* analyse this file as a source of
+When attempting to define undefined names, pyp will statically\* analyse this file as a source of
 possible definitions. This means that if you don't use `tf`, we won't import `tensorflow`! And of
 course, `--explain` will show you exactly what gets run (and hence what doesn't!):
 
