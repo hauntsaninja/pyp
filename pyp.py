@@ -619,6 +619,8 @@ def run_pyp(args: argparse.Namespace) -> None:
     try:
         exec(compile(tree, filename="<pyp>", mode="exec"), {})
     except Exception as e:
+        # On error, reconstruct a traceback into the generated code
+        # Also add some diagnostics for ModuleNotFoundError and NameError
         try:
             line_to_node: Dict[int, ast.AST] = {}
             for node in dfs_walk(tree):
