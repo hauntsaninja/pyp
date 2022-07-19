@@ -198,15 +198,21 @@ def test_tracebacks():
 
     # Check the entire output, end to end
     pyp_error = run_cmd("pyp 'def f(): 1/0' 'f()'", check=False)
-    message = lambda x, y: (  # noqa
-        "error: Code raised the following exception, consider using --explain to investigate:\n\n"
-        "Possible reconstructed traceback (most recent call last):\n"
-        '  File "<pyp>", in <module>\n'
-        "    output = f()\n"
-        '  File "<pyp>", in f\n'
-        f"    {x}1 / 0{y}\n"
-        "ZeroDivisionError: division by zero\n"
+    message = lambda po, pc: (  # noqa
+        (
+            "error: Code raised the following exception, "
+            "consider using --explain to investigate:\n\n"
+            "Possible reconstructed traceback (most recent call last):\n"
+            '  File "<pyp>", in <module>\n'
+            "    output = f()\n"
+        )
+        + ("     ^^^^^^^^^^^\n" if sys.version_info >= (3, 11) else "")
+        + ('  File "<pyp>", in f\n' f"    {po}1 / 0{pc}\n")
+        + ("         \n" if sys.version_info >= (3, 11) else "")
+        + ("ZeroDivisionError: division by zero\n")
     )
+    print(repr(pyp_error))
+    print(repr(message("", "")))
     assert pyp_error == message("(", ")") or pyp_error == message("", "")
 
     # Test tracebacks involving statements with nested child statements
@@ -219,7 +225,9 @@ def test_explain():
         "pyp --explain -b 'd = defaultdict(list)' 'user, pid, *_ = x.split()' "
         """'d[user].append(pid)' -a 'del d["root"]' -a d"""
     )
-    script = r"""
+    po = "" if sys.version_info >= (3, 11) else "("
+    pc = "" if sys.version_info >= (3, 11) else ")"
+    script = rf"""
 #!/usr/bin/env python3
 from collections import defaultdict
 import sys
@@ -227,7 +235,7 @@ from pyp import pypprint
 d = defaultdict(list)
 for x in sys.stdin:
     x = x.rstrip('\n')
-    (user, pid, *_) = x.split()
+    {po}user, pid, *_{pc} = x.split()
     d[user].append(pid)
 del d['root']
 if d is not None:
