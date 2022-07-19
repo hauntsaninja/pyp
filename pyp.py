@@ -596,8 +596,14 @@ def unparse(tree: ast.AST, short_fallback: bool = False) -> str:
         return cast(str, astunparse.unparse(tree))
     except ImportError:
         pass
-    if short_fallback:
-        return f"# {ast.dump(tree)}  # --explain has instructions to make this readable"
+    return (
+        fallback_unparse(tree)
+        if not short_fallback
+        else f"# {ast.dump(tree)}  # --explain has instructions to make this readable"
+    )
+
+
+def fallback_unparse(tree: ast.AST) -> str:
     return f"""
 from ast import *
 tree = fix_missing_locations({ast.dump(tree)})
