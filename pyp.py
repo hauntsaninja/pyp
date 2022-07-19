@@ -640,6 +640,8 @@ def run_pyp(args: argparse.Namespace) -> None:
             )
             for fs in tb_except.stack:
                 if fs.filename == "<pyp>":
+                    if fs.lineno is None:
+                        raise AssertionError("When would this happen?")
                     fs._line = code_for_line(fs.lineno)  # type: ignore[attr-defined]
                     fs.lineno = "PYP_REDACTED"  # type: ignore[assignment]
 
