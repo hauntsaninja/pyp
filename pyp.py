@@ -580,6 +580,8 @@ class PypTransform:
             if isinstance(node, ast.stmt):
                 i += 1
             node.lineno = i
+            if sys.version_info >= (3, 8):
+                node.end_lineno = i
 
         return ast.fix_missing_locations(ret)
 
