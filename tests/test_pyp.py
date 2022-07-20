@@ -83,11 +83,11 @@ def compare_scripts(explain_output: str, script: str) -> None:
 def test_examples():
     """Test approximately the examples in the README."""
 
-    example = "python\nsnake\nss\nmagpy\npiethon\nreadme.md\n"
+    example = "🐍\npython\nsnake\nss\nmagpy\npiethon\nreadme.md\n"
 
     compare_command(example_cmd="cut -c1-4", pyp_cmd="pyp 'x[:4]'", input=example)
     compare_command(
-        example_cmd="wc -c | tr -d ' '", pyp_cmd="pyp 'len(stdin.read())'", input=example
+        example_cmd="wc -c | tr -d ' '", pyp_cmd="pyp 'len(stdin.buffer.read())'", input=example
     )
     compare_command(
         example_cmd="awk '{s+=$1} END {print s}' ",
