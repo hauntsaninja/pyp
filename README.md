@@ -37,7 +37,7 @@ Use the magic variable `lines` for a list of rstripped lines or `stdin` for `sys
 
 ```sh
 # pyp like wc -c
-cat /usr/share/dict/words | pyp 'len(stdin.read().encode())'
+cat /usr/share/dict/words | pyp 'len(stdin.buffer.read())'
 
 # pyp like awk
 seq 1 5 | pyp 'sum(map(int, lines))'
