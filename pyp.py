@@ -253,7 +253,7 @@ class PypConfig:
         # Modules from which automatic imports work without qualification, ordered by AST encounter
         self.wildcard_imports: List[str] = []
 
-        self.shebang: str = f"#! {sys.interpreter}"
+        self.shebang: str = f"#!{sys.interpreter}"
         if config_contents.startswith("#!"):
             self.shebang = "\n".join(
                 itertools.takewhile(lambda l: l.startswith("#"), config_contents.splitlines())
