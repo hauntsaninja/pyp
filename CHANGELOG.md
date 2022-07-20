@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+- Fix AST construction on Python 3.11
+- Constructed ASTs now have a more convincing `end_lineno`
+- Test coverage for fallback unparsing, other test improvements
+
 ## [v1.0.0]
 
 - Configuration now allows the use of magic variables, effectively allowing you to define your own
