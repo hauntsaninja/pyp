@@ -285,7 +285,7 @@ def test_wildcard_import():
 #!/usr/bin/env python3
 from shlex import split
 import sys
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present. Maybe you meant to use a magic variable like `stdin` or `x`?"
 from shlex import *
 split
 """  # noqa
@@ -295,7 +295,7 @@ split
 #!/usr/bin/env python3
 from shlex import split
 import sys
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present. Maybe you meant to use a magic variable like `stdin` or `x`?"
 from os.path import *
 from shlex import *
 split
@@ -347,7 +347,7 @@ np
 import sys
 import numpy as np
 from scipy.linalg import eigvals
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present. Maybe you meant to use a magic variable like `stdin` or `x`?"
 eigvals(np.array([[0.0, -1.0], [1.0, 0.0]]))
 """  # noqa
     compare_scripts(
@@ -542,7 +542,7 @@ def test_config_automatic_import(config_mock):
 import json
 import sys
 j = json
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present. Maybe you meant to use a magic variable like `stdin` or `x`?"
 j
 """  # noqa
     compare_scripts(run_pyp(["--explain", "j; pass"]), script1)
@@ -553,7 +553,7 @@ j
 from typing import List
 import sys
 L = List
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present. Maybe you meant to use a magic variable like `stdin` or `x`?"
 L
 """  # noqa
     compare_scripts(run_pyp(["--explain", "L; pass"]), script2)
@@ -646,7 +646,7 @@ else:
 import ast
 import sys
 {if_block}
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present. Maybe you meant to use a magic variable like `stdin` or `x`?"
 unparse(ast.parse('x'))
 """  # noqa
     compare_scripts(run_pyp(["--explain", "unparse(ast.parse('x')); pass"]), script1)
@@ -664,7 +664,7 @@ except ImportError:
 import sys
 import ast
 {except_block}
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present. Maybe you meant to use a magic variable like `stdin` or `x`?"
 unparse(ast.parse('x'))
 """  # noqa
     compare_scripts(run_pyp(["--explain", "unparse(ast.parse('x')); pass"]), script2)
@@ -693,7 +693,7 @@ except ImportError:
 import sys
 import ast
 {except_block}
-assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present"
+assert sys.stdin.isatty() or not sys.stdin.read(), "The command doesn't process input, but input is present. Maybe you meant to use a magic variable like `stdin` or `x`?"
 unparse(ast.parse('x'))
 """  # noqa
     compare_scripts(run_pyp(["--explain", "unparse(ast.parse('x')); pass"]), script3)
