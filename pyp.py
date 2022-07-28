@@ -512,7 +512,8 @@ class PypTransform:
         else:
             no_pipe_assertion = ast.parse(
                 "assert sys.stdin.isatty() or not sys.stdin.read(), "
-                '''"The command doesn't process input, but input is present"'''
+                """"The command doesn't process input, but input is present. """
+                '''Maybe you meant to use a magic variable like `stdin` or `x`?"'''
             )
             self.tree.body = no_pipe_assertion.body + self.tree.body
             self.use_pypprint_for_implicit_print()
