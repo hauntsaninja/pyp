@@ -41,13 +41,8 @@ def run_pyp(cmd: Union[str, List[str]], input: Optional[str] = None) -> str:
         del cmd[0]
 
     output = io.StringIO()
-    with contextlib.redirect_stdout(output):
-        try:
-            old_stdin = sys.stdin
-            sys.stdin = io.StringIO(input)
-            pyp.run_pyp(pyp.parse_options(cmd))
-        finally:
-            sys.stdin = old_stdin
+    with contextlib.redirect_stdout(output), BytesIO(input.encode()) as bio, TextIOWrapper(bio, encoding='utf-8') as stdin, patch("sys.stdin", stdin):
+        pyp.run_pyp(pyp.parse_options(cmd))
     return output.getvalue()
 
 
