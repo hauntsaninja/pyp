@@ -1,7 +1,6 @@
 import ast
 import contextlib
 import io
-from platform import platform
 import re
 import shlex
 import subprocess
