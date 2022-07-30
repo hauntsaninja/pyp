@@ -44,7 +44,7 @@ def run_pyp(cmd: Union[str, List[str]], input: Optional[str] = None) -> str:
         input = input.encode()
 
     output = io.StringIO()
-    stdin = io.TextIOWrapper(io.BytesIO(input), encoding='utf-8')
+    stdin = io.TextIOWrapper(io.BytesIO(input), encoding="utf-8")
     with contextlib.redirect_stdout(output), patch("sys.stdin", stdin):
         pyp.run_pyp(pyp.parse_options(cmd))
     return output.getvalue()
@@ -88,7 +88,7 @@ def case(
     marks=(),
 ):
     return pytest.param(
-        example_cmd, pyp_cmd, input, use_subprocess, marks=marks, id=f'echo {input} | {pyp_cmd}'
+        example_cmd, pyp_cmd, input, use_subprocess, marks=marks, id=f"echo {input} | {pyp_cmd}"
     )
 
 
