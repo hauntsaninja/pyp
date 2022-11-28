@@ -256,7 +256,7 @@ class PypConfig:
         self.shebang: str = "#!/usr/bin/env python3"
         if config_contents.startswith("#!"):
             self.shebang = "\n".join(
-                itertools.takewhile(lambda l: l.startswith("#"), config_contents.splitlines())
+                itertools.takewhile(lambda line: line.startswith("#"), config_contents.splitlines())
             )
 
         top_level: Tuple[Any, ...] = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
