@@ -412,7 +412,7 @@ class PypTransform:
                     )
                 ):
                     # ...then recursively look for a standalone expression
-                    return inner(body[-1].body, use_pypprint)  # type: ignore
+                    return inner(body[-1].body, use_pypprint)
                 return False
 
             if isinstance(body[-1].value, ast.Name):
