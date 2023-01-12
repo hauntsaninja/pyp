@@ -26,7 +26,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {python: '3.6', tox: py36}
           - {python: '3.7', tox: py37}
           - {python: '3.8', tox: py38}
           - {python: '3.9', tox: py39}
@@ -49,4 +48,3 @@ jobs:
       - run: pip install tox coveralls
       - run: tox -e coverage
       - run: coveralls --service=github
-
