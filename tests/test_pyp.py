@@ -208,7 +208,7 @@ def test_tracebacks():
         )
         + ("     ^^^^^^^^^^^\n" if sys.version_info >= (3, 11) else "")
         + ('  File "<pyp>", in f\n' f"    {po}1 / 0{pc}\n")
-        + ("         \n" if sys.version_info >= (3, 11) else "")
+        + ("          \n" if sys.version_info >= (3, 11) else "")
         + ("ZeroDivisionError: division by zero\n")
     )
     print(repr(pyp_error))
