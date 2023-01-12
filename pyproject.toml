@@ -1,3 +1,37 @@
+[project]
+name = "pypyp"
+version = "1.1.0"
+authors = [{name = "Shantanu Jain"}, {email = "hauntsaninja@gmail.com"}]
+description = "Easily run Python at the shell! Magical, but never mysterious."
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development",
+    "Topic :: Utilities",
+]
+requires-python = ">=3.6"
+dependencies = ["astunparse; python_version<'3.9'"]
+
+[project.scripts]
+pyp = "pyp:main"
+
+[project.urls]
+homepage = "https://github.com/hauntsaninja/pyp"
+repository = "https://github.com/hauntsaninja/pyp"
+changelog = "https://github.com/hauntsaninja/pyp/blob/master/CHANGELOG.md"
+
+[tool.flit.module]
+name = "pyp"
+
+[build-system]
+requires = ["flit_core>=3.4"]
+build-backend = "flit_core.buildapi"
+
 [tool.black]
 line-length = 100
 skip-magic-trailing-comma = true
