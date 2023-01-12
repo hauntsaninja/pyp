@@ -1,10 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [v1.1.0]
 
 - Fix AST construction on Python 3.11
 - Constructed ASTs now have a more convincing `end_lineno`
 - Test coverage for fallback unparsing, other test improvements
+- Now packaged by `flit`
 
 ## [v1.0.0]
 
