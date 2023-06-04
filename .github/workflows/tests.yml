@@ -31,6 +31,7 @@ jobs:
           - {python: '3.9', tox: py39}
           - {python: '3.10', tox: py310}
           - {python: '3.11', tox: py311}
+          - {python: '3.12-dev', tox: py312}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
