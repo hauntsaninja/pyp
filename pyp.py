@@ -118,7 +118,9 @@ class NameFinder(ast.NodeVisitor):
 
     def visit_alias(self, node: ast.alias) -> None:
         if node.name != "*":
-            self._scopes[-1].add(node.asname if node.asname is not None else node.name)
+            self._scopes[-1].add(
+                node.asname if node.asname is not None else node.name.split(".")[0]
+            )
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         if node.module is not None and "*" in (a.name for a in node.names):
