@@ -14,7 +14,7 @@ classifiers = [
     "Topic :: Software Development",
     "Topic :: Utilities",
 ]
-requires-python = ">=3.6"
+requires-python = ">=3.8"
 dependencies = ["astunparse; python_version<'3.9'"]
 
 [project.scripts]
