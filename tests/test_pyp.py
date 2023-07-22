@@ -259,7 +259,6 @@ def test_automatic_print_inside_statement():
         run_pyp("pyp 'if int(x) > 2: int(x)' 'else: int(x) + 1'")
 
 
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python 3.8 or later")
 def test_automatic_print_nested_scope():
     with pytest.raises(pyp.PypError, match="Code doesn't generate any output"):
         run_pyp(["x", "def f(x): (output := x) + 1"])
