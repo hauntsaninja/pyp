@@ -10,7 +10,7 @@ Easily run Python at the shell! Magical, but never mysterious.
 
 Run `pip install pypyp` <sup>(note the extra "yp"!)</sup>
 
-pyp requires Python 3.6 or above.
+pyp requires Python 3.8 or above.
 
 ## How it works
 
