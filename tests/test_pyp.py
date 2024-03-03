@@ -198,22 +198,21 @@ def test_tracebacks():
 
     # Check the entire output, end to end
     pyp_error = run_cmd("pyp 'def f(): 1/0' 'f()'", check=False)
-    message = lambda po, pc: (  # noqa
-        (
-            "error: Code raised the following exception, "
-            "consider using --explain to investigate:\n\n"
-            "Possible reconstructed traceback (most recent call last):\n"
-            '  File "<pyp>", in <module>\n'
-            "    output = f()\n"
-        )
-        + ("     ^^^^^^^^^^^\n" if sys.version_info >= (3, 11) else "")
-        + ('  File "<pyp>", in f\n' f"    {po}1 / 0{pc}\n")
-        + ("          \n" if sys.version_info >= (3, 11) else "")
-        + ("ZeroDivisionError: division by zero\n")
+    pyp_error = pyp_error.replace("(1 / 0)", "1 / 0")
+    pyp_error = re.sub(r"\n[\s\^]+\n", "\n", pyp_error)
+    message = (
+        "error: Code raised the following exception, "
+        "consider using --explain to investigate:\n\n"
+        "Possible reconstructed traceback (most recent call last):\n"
+        '  File "<pyp>", in <module>\n'
+        "    output = f()\n"
+        '  File "<pyp>", in f\n'
+        "    1 / 0\n"
+        "ZeroDivisionError: division by zero\n"
     )
-    print(repr(pyp_error))
-    print(repr(message("", "")))
-    assert pyp_error == message("(", ")") or pyp_error == message("", "")
+    print("actual", repr(pyp_error))
+    print("expected", repr(message))
+    assert pyp_error == message
 
     # Test tracebacks involving statements with nested child statements
     pyp_error = run_cmd("""pyp 'if 1 / 0: print("should_not_get_here")'""", check=False)
