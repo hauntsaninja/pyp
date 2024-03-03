@@ -203,11 +203,15 @@ If that doesn't answer your question, please open an issue!
 
 ## Related projects
 
-### [Pyed Piper](https://code.google.com/archive/p/pyp/) aka  Python Power at the Prompt
+### [Pyed Piper](https://github.com/thepyedpiper/pyp) aka  Python Power at the Prompt
 
-pyp takes inspiration (and the command name!) from here.
-However, Pyed Piper appears to be unmaintained, Python 2 only, and further away from Python syntax
-than pyp aims to be. Github mirror [here](https://github.com/yuvadm/pyp/).
+pypyp takes inspiration (and the command name!) from here.
+
+Pyed Piper [had been dead and Python 2 only](https://code.google.com/archive/p/pyp/) for a decade
+when pypyp was written; it appears it's recently been resurrected. Pyed Piper is further away
+from normal Python syntax and APIs than pypyp aims to be. In particular, Pyed Piper has an emphasis
+on piping within Python similar to the way you can combine `pypyp` with `pipetools` in the
+configuration example above.
 
 ### [Pyped](https://github.com/ksamuel/Pyped)
 
