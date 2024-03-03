@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.2.0]
+- Fix submodule import name detection
+- Add `pypyp` as alternate command line entrypoint
+- Drop support for Python 3.6 and 3.7
+- Testing updates
+
 ## [v1.1.0]
 
 - Fix AST construction on Python 3.11
