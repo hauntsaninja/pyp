@@ -19,6 +19,7 @@ dependencies = ["astunparse; python_version<'3.9'"]
 
 [project.scripts]
 pyp = "pyp:main"
+pypyp = "pyp:main"
 
 [project.urls]
 homepage = "https://github.com/hauntsaninja/pyp"
