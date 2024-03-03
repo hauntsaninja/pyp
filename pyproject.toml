@@ -1,6 +1,6 @@
 [project]
 name = "pypyp"
-version = "1.1.0"
+version = "1.2.0"
 authors = [{name = "Shantanu Jain"}, {email = "hauntsaninja@gmail.com"}]
 description = "Easily run Python at the shell! Magical, but never mysterious."
 readme = "README.md"
