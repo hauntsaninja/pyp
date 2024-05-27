@@ -653,8 +653,12 @@ def run_pyp(args: argparse.Namespace) -> None:
                 if fs.filename == "<pyp>":
                     if fs.lineno is None:
                         raise AssertionError("When would this happen?")
-                    fs._line = code_for_line(fs.lineno)  # type: ignore[attr-defined]
-                    fs.lineno = "PYP_REDACTED"  # type: ignore[assignment]
+                    if sys.version_info >= (3, 13):
+                        fs._lines = code_for_line(fs.lineno)  # type: ignore[attr-defined]
+                        fs.colno = None
+                    else:
+                        fs._line = code_for_line(fs.lineno)  # type: ignore[attr-defined]
+                        fs.lineno = "PYP_REDACTED"  # type: ignore[assignment]
 
             tb_format = tb_except.format()
             assert "Traceback (most recent call last)" in next(tb_format)
