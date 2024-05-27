@@ -221,7 +221,7 @@ def get_config_contents() -> str:
         with open(config_file, "r") as f:
             return f.read()
     except FileNotFoundError:
-        print(f"warning: config file not found at PYP_CONFIG_PATH={config_file}", file=sys.stderr)
+        print(f"warning: Config file not found at PYP_CONFIG_PATH={config_file}", file=sys.stderr)
         return ""
 
 

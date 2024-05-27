@@ -697,14 +697,19 @@ unparse(ast.parse('x'))
     compare_scripts(run_pyp(["--explain", "unparse(ast.parse('x')); pass"]), script3)
 
 
-def test_config_end_to_end(monkeypatch):
+def test_config_end_to_end(monkeypatch, capsys):
     with tempfile.NamedTemporaryFile("w") as f:
-        monkeypatch.setenv("PYP_CONFIG_PATH", f.name)
         config = "def foo(): return 1"
         f.write(config)
         f.flush()
-        assert run_pyp("foo()") == "1\n"
+
+        monkeypatch.setenv("PYP_CONFIG_PATH", f.name)
+        with capsys.disabled():
+            assert run_pyp("foo()") == "1\n"
 
         monkeypatch.setenv("PYP_CONFIG_PATH", f.name + "_does_not_exist")
-        with pytest.raises(pyp.PypError, match=f"Config file not found.*{f.name}"):
+        with pytest.raises(pyp.PypError, match="No module named 'foo'"):
             run_pyp("foo()")
+
+        stderr = capsys.readouterr().err
+        assert f"warning: Config file not found at PYP_CONFIG_PATH={f.name}" in stderr
