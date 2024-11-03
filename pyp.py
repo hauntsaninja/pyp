@@ -583,8 +583,8 @@ class PypTransform:
         for node in dfs_walk(ret):
             if isinstance(node, ast.stmt):
                 i += 1
-            node.lineno = i
-            node.end_lineno = i
+            node.lineno = i  # type: ignore[attr-defined]
+            node.end_lineno = i  # type: ignore[attr-defined]
 
         return ast.fix_missing_locations(ret)
 
@@ -656,6 +656,7 @@ def run_pyp(args: argparse.Namespace) -> None:
                     if sys.version_info >= (3, 13):
                         fs._lines = code_for_line(fs.lineno)  # type: ignore[attr-defined]
                         fs.colno = None
+                        fs.lineno = "PYP_REDACTED"  # type: ignore[assignment]
                     else:
                         fs._line = code_for_line(fs.lineno)  # type: ignore[attr-defined]
                         fs.lineno = "PYP_REDACTED"  # type: ignore[assignment]
