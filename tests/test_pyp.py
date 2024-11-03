@@ -697,6 +697,26 @@ unparse(ast.parse('x'))
     compare_scripts(run_pyp(["--explain", "unparse(ast.parse('x')); pass"]), script3)
 
 
+@patch("pyp.get_config_contents")
+def test_config_pyp_before(config_mock):
+    config_mock.return_value = """
+import signal
+import sys
+def __pyp_before__():
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+"""
+    script = r"""#!/usr/bin/env python3
+import signal
+import sys
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+for x in sys.stdin:
+    x = x.rstrip('\n')
+    if x is not None:
+        print(x)
+"""
+    compare_scripts(run_pyp(["--explain", "x"]), script)
+
+
 def test_config_end_to_end(monkeypatch, capsys):
     with tempfile.NamedTemporaryFile("w") as f:
         config = "def foo(): return 1"

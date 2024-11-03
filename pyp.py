@@ -313,8 +313,17 @@ class PypTransform:
                 raise PypError("".join(message).strip()) from e
 
         self.before_tree = parse_input(before)
+        if "__pyp_before__" in config.name_to_def:
+            config_before = config.parts[config.name_to_def["__pyp_before__"]]
+            if not isinstance(config_before, ast.FunctionDef):
+                raise PypError("Config __pyp_before__ must be a function")
+            self.before_tree.body = config_before.body + self.before_tree.body
+
         self.tree = parse_input(code)
+
         self.after_tree = parse_input(after)
+        if "__pyp_after__" in config.name_to_def:
+            raise PypError("Config __pyp_after__ not supported")
 
         f = NameFinder(self.before_tree, self.tree, self.after_tree)
         self.defined: Set[str] = f.top_level_defined
