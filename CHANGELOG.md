@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.3.0]
+- Add support for Python 3.13
+- Turn missing config file into a warning instead of an error
+- Add support for `__pyp_before__` configuration for permanent `before` code
+
 ## [v1.2.0]
 - Fix submodule import name detection
 - Add `pypyp` as alternate command line entrypoint
