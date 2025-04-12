@@ -8,7 +8,13 @@ Easily run Python at the shell! Magical, but never mysterious.
 
 ## Installation
 
-Run `pip install pypyp` <sup>(note the extra "yp"!)</sup>
+pyp is packaged in
+
+- [Homebrew](https://formulae.brew.sh/formula/pyp)
+- [nixpkgs](https://search.nixos.org/packages?channel=unstable&show=pyp)
+- [AUR](https://aur.archlinux.org/packages/pyp)
+
+You can also run `pip install pypyp` <sup>(note the extra "yp"!)</sup>
 
 pyp requires Python 3.8 or above.
 
