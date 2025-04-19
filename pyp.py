@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import argparse
 import ast
 import importlib
@@ -9,7 +11,7 @@ import sys
 import textwrap
 import traceback
 from collections import defaultdict
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, cast
+from typing import Any, Iterator, cast
 
 __all__ = ["pypprint"]
 __version__ = "1.3.0"
@@ -51,17 +53,17 @@ class NameFinder(ast.NodeVisitor):
     """
 
     def __init__(self, *trees: ast.AST) -> None:
-        self._scopes: List[Set[str]] = [set()]
-        self._comprehension_scopes: List[int] = []
+        self._scopes: list[set[str]] = [set()]
+        self._comprehension_scopes: list[int] = []
 
-        self.undefined: Set[str] = set()
-        self.wildcard_imports: List[str] = []
+        self.undefined: set[str] = set()
+        self.wildcard_imports: list[str] = []
         for tree in trees:
             self.visit(tree)
         assert len(self._scopes) == 1
 
     @property
-    def top_level_defined(self) -> Set[str]:
+    def top_level_defined(self) -> set[str]:
         return self._scopes[0]
 
     def flexible_visit(self, value: Any) -> None:
@@ -73,7 +75,7 @@ class NameFinder(ast.NodeVisitor):
             self.visit(value)
 
     def generic_visit(self, node: ast.AST) -> None:
-        def order(f_v: Tuple[str, Any]) -> int:
+        def order(f_v: tuple[str, Any]) -> int:
             # This ordering fixes comprehensions, dict comps, loops, assignments
             return {"generators": -3, "iter": -3, "key": -2, "value": -1}.get(f_v[0], 0)
 
@@ -138,7 +140,7 @@ class NameFinder(ast.NodeVisitor):
         # Classes are not okay with self-reference, so define ``name`` afterwards
         self._scopes[-1].add(node.name)
 
-    def visit_function_helper(self, node: Any, name: Optional[str] = None) -> None:
+    def visit_function_helper(self, node: Any, name: str | None = None) -> None:
         # Functions are okay with recursion, but not self-reference while defining default values
         self.flexible_visit(node.args)
         if name is not None:
@@ -247,14 +249,14 @@ class PypConfig:
             raise PypError(f"Config has invalid syntax{error}") from e
 
         # List of config parts
-        self.parts: List[ast.stmt] = config_ast.body
+        self.parts: list[ast.stmt] = config_ast.body
         # Maps from a name to index of config part that defines it
-        self.name_to_def: Dict[str, int] = {}
-        self.def_to_names: Dict[int, List[str]] = defaultdict(list)
+        self.name_to_def: dict[str, int] = {}
+        self.def_to_names: dict[int, list[str]] = defaultdict(list)
         # Maps from index of config part to undefined names it needs
-        self.requires: Dict[int, Set[str]] = defaultdict(set)
+        self.requires: dict[int, set[str]] = defaultdict(set)
         # Modules from which automatic imports work without qualification, ordered by AST encounter
-        self.wildcard_imports: List[str] = []
+        self.wildcard_imports: list[str] = []
 
         self.shebang: str = "#!/usr/bin/env python3"
         if config_contents.startswith("#!"):
@@ -262,7 +264,7 @@ class PypConfig:
                 itertools.takewhile(lambda line: line.startswith("#"), config_contents.splitlines())
             )
 
-        top_level: Tuple[Any, ...] = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        top_level: tuple[Any, ...] = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
         top_level += (ast.Import, ast.ImportFrom, ast.Assign, ast.AnnAssign, ast.If, ast.Try)
         for index, part in enumerate(self.parts):
             if not isinstance(part, top_level):
@@ -298,13 +300,13 @@ class PypTransform:
 
     def __init__(
         self,
-        before: List[str],
-        code: List[str],
-        after: List[str],
+        before: list[str],
+        code: list[str],
+        after: list[str],
         define_pypprint: bool,
         config: PypConfig,
     ) -> None:
-        def parse_input(code: List[str]) -> ast.Module:
+        def parse_input(code: list[str]) -> ast.Module:
             try:
                 return ast.parse(textwrap.dedent("\n".join(code).strip()))
             except SyntaxError as e:
@@ -326,9 +328,9 @@ class PypTransform:
             raise PypError("Config __pyp_after__ not supported")
 
         f = NameFinder(self.before_tree, self.tree, self.after_tree)
-        self.defined: Set[str] = f.top_level_defined
-        self.undefined: Set[str] = f.undefined
-        self.wildcard_imports: List[str] = f.wildcard_imports
+        self.defined: set[str] = f.top_level_defined
+        self.undefined: set[str] = f.undefined
+        self.wildcard_imports: list[str] = f.wildcard_imports
         # We'll always use sys in ``build_input``, so add it to undefined.
         # This lets config define it or lets us automatically import it later
         # (If before defines it, we'll just let it override the import...)
@@ -338,11 +340,11 @@ class PypTransform:
         self.config = config
 
         # The print statement ``build_output`` will add, if it determines it needs to.
-        self.implicit_print: Optional[ast.Call] = None
+        self.implicit_print: ast.Call | None = None
 
     def build_missing_config(self) -> None:
         """Modifies the AST to define undefined names defined in config."""
-        config_definitions: Set[str] = set()
+        config_definitions: set[str] = set()
         attempt_to_define = set(self.undefined)
         while attempt_to_define:
             can_define = attempt_to_define & set(self.config.name_to_def)
@@ -406,7 +408,7 @@ class PypTransform:
         if self.undefined & {"print", "pprint", "pp", "pypprint"}:  # has an explicit print
             return
 
-        def inner(body: List[ast.stmt], use_pypprint: bool = False) -> bool:
+        def inner(body: list[ast.stmt], use_pypprint: bool = False) -> bool:
             if not body:
                 return False
             if isinstance(body[-1], ast.Pass):
@@ -642,7 +644,7 @@ def run_pyp(args: argparse.Namespace) -> None:
         # On error, reconstruct a traceback into the generated code
         # Also add some diagnostics for ModuleNotFoundError and NameError
         try:
-            line_to_node: Dict[int, ast.AST] = {}
+            line_to_node: dict[int, ast.AST] = {}
             for node in dfs_walk(tree):
                 line_to_node.setdefault(getattr(node, "lineno", -1), node)
 
@@ -699,7 +701,7 @@ def run_pyp(args: argparse.Namespace) -> None:
         ) from e
 
 
-def parse_options(args: List[str]) -> argparse.Namespace:
+def parse_options(args: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="pyp",
         formatter_class=argparse.RawDescriptionHelpFormatter,
