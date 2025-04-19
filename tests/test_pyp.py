@@ -24,7 +24,7 @@ def delete_config_env_var(monkeypatch):
     monkeypatch.delenv("PYP_CONFIG_PATH", raising=False)
 
 
-def run_cmd(cmd: str, input: Optional[str] = None, check: bool = True) -> str:
+def run_cmd(cmd: str, input: Union[str, bytes, None] = None, check: bool = True) -> str:
     if isinstance(input, str):
         input = input.encode("utf-8")
     proc = subprocess.run(
