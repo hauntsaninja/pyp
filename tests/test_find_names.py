@@ -23,6 +23,7 @@ def check_find_names(
     if not confirm:
         return
 
+    exec_locals: object
     exec_locals = {}
     actually_undefined = undefined - set(dir(__import__("builtins")))
     if actually_undefined:
@@ -30,7 +31,9 @@ def check_find_names(
         # (if we hit another exception first, we fix the test!)
         with pytest.raises(NameError) as e:
             exec(code, exec_locals)
-        undefined_var = re.search(r"(name|variable) '(\w+)'", e.value.args[0]).group(2)
+        m = re.search(r"(name|variable) '(\w+)'", e.value.args[0])
+        assert m is not None
+        undefined_var = m.group(2)
         assert undefined_var in actually_undefined
     else:
         try:
