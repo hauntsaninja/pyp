@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import ast
 import re
 import sys
-from typing import List, Optional, Set
 
 import pytest
 
@@ -10,9 +11,9 @@ from pyp import NameFinder
 
 def check_find_names(
     code: str,
-    defined: Set[str],
-    undefined: Set[str],
-    wildcard_imports: Optional[List[str]] = None,
+    defined: set[str],
+    undefined: set[str],
+    wildcard_imports: list[str] | None = None,
     confirm: bool = True,
 ) -> None:
     names = NameFinder(ast.parse(code))

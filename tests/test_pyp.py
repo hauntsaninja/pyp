@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import ast
 import contextlib
 import io
@@ -7,7 +9,6 @@ import subprocess
 import sys
 import tempfile
 import traceback
-from typing import List, Optional, Union
 from unittest.mock import patch
 
 import pytest
@@ -24,7 +25,7 @@ def delete_config_env_var(monkeypatch):
     monkeypatch.delenv("PYP_CONFIG_PATH", raising=False)
 
 
-def run_cmd(cmd: str, input: Union[str, bytes, None] = None, check: bool = True) -> str:
+def run_cmd(cmd: str, input: str | bytes | None = None, check: bool = True) -> str:
     if isinstance(input, str):
         input = input.encode("utf-8")
     proc = subprocess.run(
@@ -33,7 +34,7 @@ def run_cmd(cmd: str, input: Union[str, bytes, None] = None, check: bool = True)
     return proc.stdout.decode("utf-8")
 
 
-def run_pyp(cmd: Union[str, List[str]], input: Optional[str] = None) -> str:
+def run_pyp(cmd: str | list[str], input: str | None = None) -> str:
     """Run pyp in process. It's quicker and allows us to mock and so on."""
     if isinstance(cmd, str):
         cmd = shlex.split(cmd)
@@ -52,7 +53,7 @@ def run_pyp(cmd: Union[str, List[str]], input: Optional[str] = None) -> str:
 
 
 def compare_command(
-    example_cmd: str, pyp_cmd: str, input: Optional[str] = None, use_subprocess: bool = False
+    example_cmd: str, pyp_cmd: str, input: str | None = None, use_subprocess: bool = False
 ) -> None:
     """Compares running command example_cmd with the output of pyp_cmd.
 
@@ -184,7 +185,7 @@ def test_tracebacks():
         def effect(*args, **kwargs):
             nonlocal count
             if count == 0:
-                assert args[0] == ZeroDivisionError
+                assert args[0] is ZeroDivisionError
                 count += 1
                 raise Exception
             return TBE(*args, **kwargs)
