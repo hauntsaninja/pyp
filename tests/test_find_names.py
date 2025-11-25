@@ -45,6 +45,8 @@ def check_find_names(
 
     exec_locals = set(exec_locals)
     exec_locals -= {"__builtins__", "__annotations__"}
+    # Python 3.14+ introduces extra internal annotation symbols
+    exec_locals -= {"__annotate__", "__conditional_annotations__"}
     # In general, we over define things, because we don't deal with scopes and such. So just check
     # a subset relationship holds, we could tighten this check in the future.
     assert exec_locals <= defined
