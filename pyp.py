@@ -11,7 +11,7 @@ import sys
 import textwrap
 import traceback
 from collections import defaultdict
-from typing import Any, Iterator, cast
+from typing import Any, Iterator
 
 __all__ = ["pypprint"]
 __version__ = "1.3.0"
@@ -600,43 +600,12 @@ class PypTransform:
         return ast.fix_missing_locations(ret)
 
 
-def unparse(tree: ast.AST, short_fallback: bool = False) -> str:
-    """Returns Python code equivalent to executing ``tree``."""
-    if sys.version_info >= (3, 9):
-        return ast.unparse(tree)
-    try:
-        import astunparse  # type: ignore
-
-        return cast(str, astunparse.unparse(tree))
-    except ImportError:
-        pass
-    return (
-        fallback_unparse(tree)
-        if not short_fallback
-        else f"# {ast.dump(tree)}  # --explain has instructions to make this readable"
-    )
-
-
-def fallback_unparse(tree: ast.AST) -> str:
-    return f"""
-from ast import *
-tree = fix_missing_locations({ast.dump(tree)})
-
-# To see this in human readable form, run pyp with Python 3.9
-# Alternatively, install a third party ast unparser: `python3 -m pip install astunparse`
-# Once you've done that, simply re-run.
-# In the meantime, this script is fully functional, if not easily readable or modifiable...
-
-exec(compile(tree, filename="<ast>", mode="exec"), {{}})
-"""
-
-
 def run_pyp(args: argparse.Namespace) -> None:
     config = PypConfig()
     tree = PypTransform(args.before, args.code, args.after, args.define_pypprint, config).build()
     if args.explain:
         print(config.shebang)
-        print(unparse(tree))
+        print(ast.unparse(tree))
         return
     try:
         exec(compile(tree, filename="<pyp>", mode="exec"), {})
@@ -654,7 +623,7 @@ def run_pyp(args: argparse.Namespace) -> None:
                 for _, value in ast.iter_fields(node):
                     if isinstance(value, list) and value and isinstance(value[0], ast.stmt):
                         value.clear()
-                return unparse(node, short_fallback=True).strip()
+                return ast.unparse(node).strip()
 
             # Time to commit several sins against CPython implementation details
             tb_except = traceback.TracebackException(

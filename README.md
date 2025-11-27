@@ -16,7 +16,7 @@ You can also install pyp in other ways:
 - [nixpkgs](https://search.nixos.org/packages?channel=unstable&show=pyp)
 - [AUR](https://aur.archlinux.org/packages/pyp)
 
-pyp requires Python 3.8 or above.
+pyp requires Python 3.9 or above.
 
 ## How it works
 

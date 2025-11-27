@@ -64,15 +64,6 @@ ff = defaultdict(lambda: None, dict(enumerate(x.split())))
 d = defaultdict(list)
 ```
 
-#### What are pyp's dependencies?
-
-If run on Python 3.9 or later, pyp has no dependencies.
-
-On earlier Python versions, pyp is dependent on [astunparse](https://github.com/simonpercivall/astunparse)
-for `--explain`/`--script` to work as promised. Note you can use `pyp.py` as a Python script without
-installing `astunparse` and everything else will work. (In fact `--script` will still output a
-script that does what you want it to, but it won't be particularly readable...)
-
 #### Can I customise the shebang on the output of `--script`?
 
 Yes! Just add the shebang you want to your [config file](https://github.com/hauntsaninja/pyp#pyp-is-configurable).
@@ -81,10 +72,7 @@ of `--explain`/`--script`.
 
 #### The output of `--explain` is a little weirdly formatted
 
-Try running with Python 3.9 or later! The AST unparser that the standard library includes in 3.9
-and later fixes a lot of formatting nits that are present in third party AST unparsers.
-
-You can also pipe the output of `pyp --explain` to an autoformatter like [black](https://github.com/psf/black):
+You can pipe the output of `pyp --explain` to an autoformatter like [black](https://github.com/psf/black):
 
 ```
 $ pyp --explain x | black --quiet -
@@ -144,4 +132,4 @@ Benchmark #1: seq 1 999999 | pyp 'sum(map(int, lines))'
 You should be able to use PyPy! Tests currently pass against PyPy (run `tox -e pypy3`).
 You can install pyp using PyPy with something like `pypy3 -m pip install pypyp`.
 Running `pyp sys.version` will tell you whether it worked. Note that pyp requires at least
-Python 3.8; this constraint naturally applies when using PyPy as well.
+Python 3.9; this constraint naturally applies when using PyPy as well.

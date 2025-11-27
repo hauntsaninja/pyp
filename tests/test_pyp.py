@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ast
 import contextlib
 import io
 import re
@@ -68,12 +67,7 @@ def compare_scripts(explain_output: str, script: str) -> None:
     """Tests whether two scripts are equivalent."""
     explain_output = explain_output.strip("\n")
     script = script.strip("\n")
-    if sys.version_info < (3, 9):
-        # astunparse seems to parenthesise things slightly differently, so filter through ast to
-        # hackily ensure that the scripts are the same.
-        assert pyp.unparse(ast.parse(explain_output)) == pyp.unparse(ast.parse(script))
-    else:
-        assert explain_output == script
+    assert explain_output == script
 
 
 # ====================
@@ -303,16 +297,6 @@ split
         run_pyp(["--explain", "from os.path import *", "from shlex import *", "split; pass"]),
         script2,
     )
-
-
-def test_fallback_unparse():
-    original_code = """
-x = 2 + 3
-x = x * x
-print((lambda: x)())
-"""
-    code = pyp.fallback_unparse(ast.parse(original_code))
-    assert subprocess.check_output([sys.executable, "-c", code]).decode().strip() == "25"
 
 
 # ====================
