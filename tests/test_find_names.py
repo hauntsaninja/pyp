@@ -146,9 +146,7 @@ def test_walrus():
     check_find_names("{(x := 1): (y := x) for _ in range(5)}", {"x", "y"}, {"range"})
 
     check_find_names(
-        "d1 = lambda i: i\n@(d2 := d1)\n@(d3 := d2)\ndef f(): ...",
-        {"d1", "d2", "d3", "f"},
-        set(),
+        "d1 = lambda i: i\n@(d2 := d1)\n@(d3 := d2)\ndef f(): ...", {"d1", "d2", "d3", "f"}, set()
     )
     check_find_names(
         "d1 = id\n@(d3 := d2)\n@(d2 := d1)\ndef f(): ...", {"d1", "d2", "d3", "f"}, {"d2", "id"}
