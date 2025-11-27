@@ -68,12 +68,7 @@ def compare_scripts(explain_output: str, script: str) -> None:
     """Tests whether two scripts are equivalent."""
     explain_output = explain_output.strip("\n")
     script = script.strip("\n")
-    if sys.version_info < (3, 9):
-        # astunparse seems to parenthesise things slightly differently, so filter through ast to
-        # hackily ensure that the scripts are the same.
-        assert pyp.unparse(ast.parse(explain_output)) == pyp.unparse(ast.parse(script))
-    else:
-        assert explain_output == script
+    assert explain_output == script
 
 
 # ====================

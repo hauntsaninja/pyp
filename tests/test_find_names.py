@@ -146,18 +146,17 @@ def test_walrus():
     check_find_names("{(x := y): (y := 1) for _ in range(5)}", {"x", "y"}, {"y", "range"})
     check_find_names("{(x := 1): (y := x) for _ in range(5)}", {"x", "y"}, {"range"})
 
-    if sys.version_info >= (3, 9):
-        check_find_names(
-            "d1 = lambda i: i\n@(d2 := d1)\n@(d3 := d2)\ndef f(): ...",
-            {"d1", "d2", "d3", "f"},
-            set(),
-        )
-        check_find_names(
-            "d1 = id\n@(d3 := d2)\n@(d2 := d1)\ndef f(): ...", {"d1", "d2", "d3", "f"}, {"d2", "id"}
-        )
-        check_find_names(
-            "d1 = lambda i: i\n@(d2 := d1)\ndef f(x=d2): (x, d2)", {"d1", "d2", "f"}, set()
-        )
+    check_find_names(
+        "d1 = lambda i: i\n@(d2 := d1)\n@(d3 := d2)\ndef f(): ...",
+        {"d1", "d2", "d3", "f"},
+        set(),
+    )
+    check_find_names(
+        "d1 = id\n@(d3 := d2)\n@(d2 := d1)\ndef f(): ...", {"d1", "d2", "d3", "f"}, {"d2", "id"}
+    )
+    check_find_names(
+        "d1 = lambda i: i\n@(d2 := d1)\ndef f(x=d2): (x, d2)", {"d1", "d2", "f"}, set()
+    )
 
 
 def test_comprehensions():
