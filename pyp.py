@@ -11,7 +11,7 @@ import sys
 import textwrap
 import traceback
 from collections import defaultdict
-from typing import Any, Iterator, cast
+from typing import Any, Iterator
 
 __all__ = ["pypprint"]
 __version__ = "1.3.0"

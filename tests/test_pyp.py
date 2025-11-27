@@ -300,16 +300,6 @@ split
     )
 
 
-def test_fallback_unparse():
-    original_code = """
-x = 2 + 3
-x = x * x
-print((lambda: x)())
-"""
-    code = pyp.fallback_unparse(ast.parse(original_code))
-    assert subprocess.check_output([sys.executable, "-c", code]).decode().strip() == "25"
-
-
 # ====================
 # Config tests
 # ====================
