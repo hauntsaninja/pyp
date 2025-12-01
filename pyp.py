@@ -540,10 +540,15 @@ class PypTransform:
         # get to `import sys`, we'll need to examine our wildcard imports, which in the presence
         # of config, could be slow.
         if "pypprint" in self.undefined:
-            pypprint_def = (
-                inspect.getsource(pypprint) if self.define_pypprint else "from pyp import pypprint"
-            )
-            self.before_tree.body = ast.parse(pypprint_def).body + self.before_tree.body
+            if "pypprint" in self.config.name_to_def:
+                pypprint_ast = [self.config.parts[self.config.name_to_def["pypprint"]]]
+            else:
+                pypprint_ast = ast.parse(
+                    inspect.getsource(pypprint)
+                    if self.define_pypprint
+                    else "from pyp import pypprint"
+                ).body
+            self.before_tree.body = pypprint_ast + self.before_tree.body
             self.undefined.remove("pypprint")
         if "sys" in self.undefined:
             self.before_tree.body = ast.parse("import sys").body + self.before_tree.body
