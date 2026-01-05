@@ -40,14 +40,13 @@ def run_pyp(cmd: str | list[str], input: str | None = None) -> str:
     if cmd[0] == "pyp":
         del cmd[0]
 
+    if input and isinstance(input, str):
+        input = input.encode()
+
     output = io.StringIO()
-    with contextlib.redirect_stdout(output):
-        try:
-            old_stdin = sys.stdin
-            sys.stdin = io.StringIO(input)
-            pyp.run_pyp(pyp.parse_options(cmd))
-        finally:
-            sys.stdin = old_stdin
+    stdin = io.TextIOWrapper(io.BytesIO(input), encoding="utf-8")
+    with contextlib.redirect_stdout(output), patch("sys.stdin", stdin):
+        pyp.run_pyp(pyp.parse_options(cmd))
     return output.getvalue()
 
 
@@ -75,61 +74,89 @@ def compare_scripts(explain_output: str, script: str) -> None:
 # ====================
 
 
-def test_examples():
+def case(
+    example_cmd: str,
+    pyp_cmd: str,
+    input: Optional[str] = None,
+    use_subprocess: bool = False,
+    *,
+    marks=(),
+):
+    return pytest.param(
+        example_cmd, pyp_cmd, input, use_subprocess, marks=marks, id=f"echo {input} | {pyp_cmd}"
+    )
+
+
+example = "🐍\npython\nsnake\nss\nmagpy\npiethon\nreadme.md\n"
+
+
+@pytest.mark.parametrize(
+    "example_cmd, pyp_cmd, input, use_subprocess",
+    (
+        case(example_cmd="cut -c1-4", pyp_cmd="pyp 'x[:4]'", input=example),
+        case(
+            example_cmd="wc -c | tr -d ' '", pyp_cmd="pyp 'len(stdin.buffer.read())'", input=example
+        ),
+        case(
+            example_cmd="awk '{s+=$1} END {print s}' ",
+            pyp_cmd="pyp 'sum(map(int, lines))'",
+            input="1\n2\n3\n4\n5\n",
+        ),
+        case(
+            example_cmd="sh",
+            pyp_cmd="pyp 'subprocess.run(lines[0], shell=True); pass'",
+            input="echo echo",
+            use_subprocess=True,
+        ),
+        case(
+            example_cmd="""jq -r '.[1]["lol"]'""",
+            pyp_cmd="""pyp 'json.load(stdin)[1]["lol"]'""",
+            input='[0, {"lol": "hmm"}, 0]',
+        ),
+        case(
+            example_cmd="grep -E '(py|md)'",
+            pyp_cmd="""pyp 'x if re.search("(py|md)", x) else None'""",
+            input=example,
+        ),
+        case(example_cmd="echo 'sqrt(9.0)' | bc", pyp_cmd="pyp 'sqrt(9)'"),
+        case(
+            example_cmd="x=README.md; echo ${x##*.}",
+            pyp_cmd='''pyp "Path('README.md').suffix[1:]"''',
+        ),
+        case(
+            example_cmd="echo '  1 a\n  2 b'", pyp_cmd="""pyp 'f"{idx+1: >3} {x}"'""", input="a\nb"
+        ),
+        case(example_cmd="grep py", pyp_cmd="""pyp 'x if "py" in x else None'""", input=example),
+        case(example_cmd="tail -n 3", pyp_cmd="pyp 'lines[-3:]'", input=example),
+        case(
+            example_cmd="sort",
+            pyp_cmd="pyp 'sorted(lines)'",
+            input=example,
+            marks=pytest.mark.xfail(
+                condition=sys.platform != "darwin",  # should still pass on macOS
+                reason="sort deals with UTF-8 differently on different platforms, "
+                "see https://github.com/hauntsaninja/pyp/pull/27#issuecomment-1200105035",
+                raises=AssertionError,
+            ),
+        ),
+        # same as above, but without emoji, should pass everywhere
+        case(example_cmd="sort", pyp_cmd="pyp 'sorted(lines)'", input=example[2:]),
+        case(
+            example_cmd="echo 'Sorting 2 lines\n1\n2'",
+            pyp_cmd="""pyp 'print(f"Sorting {len(lines)} lines"); pypprint(sorted(lines))'""",
+            input="2\n1\n",
+        ),
+        case(example_cmd="sort | uniq", pyp_cmd="pyp 'sorted(set(lines))'", input="2\n1\n1\n1\n3"),
+        case(
+            example_cmd='''echo "a: ['1', '3']\nb: ['2']"''',
+            pyp_cmd="pyp -b 'd = defaultdict(list)' 'k, v = x.split(); d[k].append(v)' -a 'd'",
+            input="a 1\nb 2\na 3",
+        ),
+    ),
+)
+def test_examples(example_cmd, pyp_cmd, input, use_subprocess):
     """Test approximately the examples in the README."""
-
-    example = "python\nsnake\nss\nmagpy\npiethon\nreadme.md\n"
-
-    compare_command(example_cmd="cut -c1-4", pyp_cmd="pyp 'x[:4]'", input=example)
-    compare_command(
-        example_cmd="wc -c | tr -d ' '", pyp_cmd="pyp 'len(stdin.read())'", input=example
-    )
-    compare_command(
-        example_cmd="awk '{s+=$1} END {print s}' ",
-        pyp_cmd="pyp 'sum(map(int, lines))'",
-        input="1\n2\n3\n4\n5\n",
-    )
-    compare_command(
-        example_cmd="sh",
-        pyp_cmd="pyp 'subprocess.run(lines[0], shell=True); pass'",
-        input="echo echo",
-        use_subprocess=True,
-    )
-    compare_command(
-        example_cmd="""jq -r '.[1]["lol"]'""",
-        pyp_cmd="""pyp 'json.load(stdin)[1]["lol"]'""",
-        input='[0, {"lol": "hmm"}, 0]',
-    )
-    compare_command(
-        example_cmd="grep -E '(py|md)'",
-        pyp_cmd="""pyp 'x if re.search("(py|md)", x) else None'""",
-        input=example,
-    )
-    compare_command(example_cmd="echo 'sqrt(9.0)' | bc", pyp_cmd="pyp 'sqrt(9)'")
-    compare_command(
-        example_cmd="x=README.md; echo ${x##*.}", pyp_cmd='''pyp "Path('README.md').suffix[1:]"'''
-    )
-    compare_command(
-        example_cmd="echo '  1 a\n  2 b'", pyp_cmd="""pyp 'f"{idx+1: >3} {x}"'""", input="a\nb"
-    )
-    compare_command(
-        example_cmd="grep py", pyp_cmd="""pyp 'x if "py" in x else None'""", input=example
-    )
-    compare_command(example_cmd="tail -n 3", pyp_cmd="pyp 'lines[-3:]'", input=example)
-    compare_command(example_cmd="sort", pyp_cmd="pyp 'sorted(lines)'", input=example)
-    compare_command(
-        example_cmd="echo 'Sorting 2 lines\n1\n2'",
-        pyp_cmd="""pyp 'print(f"Sorting {len(lines)} lines"); pypprint(sorted(lines))'""",
-        input="2\n1\n",
-    )
-    compare_command(
-        example_cmd="sort | uniq", pyp_cmd="pyp 'sorted(set(lines))'", input="2\n1\n1\n1\n3"
-    )
-    compare_command(
-        example_cmd='''echo "a: ['1', '3']\nb: ['2']"''',
-        pyp_cmd="pyp -b 'd = defaultdict(list)' 'k, v = x.split(); d[k].append(v)' -a 'd'",
-        input="a 1\nb 2\na 3",
-    )
+    compare_command(example_cmd, pyp_cmd, input, use_subprocess)
 
 
 def test_magic_variable_failures():
