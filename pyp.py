@@ -258,7 +258,7 @@ class PypConfig:
         # Modules from which automatic imports work without qualification, ordered by AST encounter
         self.wildcard_imports: list[str] = []
 
-        self.shebang: str = "#!/usr/bin/env python3"
+        self.shebang: str = f"#!{sys.executable}"
         if config_contents.startswith("#!"):
             self.shebang = "\n".join(
                 itertools.takewhile(lambda line: line.startswith("#"), config_contents.splitlines())
