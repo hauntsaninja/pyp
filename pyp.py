@@ -588,7 +588,11 @@ class PypTransform:
         self.build_missing_imports()
 
         ret = ast.parse("")
-        ret.body = self.before_tree.body + self.tree.body + self.after_tree.body
+        if sys.platform != "win32":
+            ret.body = ast.parse(
+                "import signal\nsignal.signal(signal.SIGPIPE, signal.SIG_DFL)"
+            ).body
+        ret.body += self.before_tree.body + self.tree.body + self.after_tree.body
         # Add fake line numbers to the nodes, so we can generate a traceback on error
         i = 0
         for node in dfs_walk(ret):
