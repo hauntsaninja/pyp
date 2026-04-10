@@ -718,3 +718,32 @@ def test_config_end_to_end(monkeypatch, capsys):
 
         stderr = capsys.readouterr().err
         assert f"warning: Config file not found at PYP_CONFIG_PATH={f.name}" in stderr
+
+
+def test_multiline_tuple_column_offsets(monkeypatch):
+    """Test that multi-line tuples don't cause invalid column offset ranges.
+
+    Regression test for issue where tuple literals with closing paren on a new line
+    would cause 'ValueError: line X, column Y-Z is not a valid range' during compilation.
+    This happened because pyp renumbered line numbers during AST transformation but didn't
+    reset column offsets, creating invalid ranges when nodes originally spanned multiple lines.
+    """
+    # Test without config - basic multi-line tuple
+    # Pass as a list with the multi-line code as a single argument
+    result = run_pyp(["X = ('a',\n)\nX"])
+    assert result == "a\n"
+
+    # Test with config that has multi-line tuple definition
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+        f.write("DATES = (\n    r'\\d{4}',\n    r'\\d{2}',\n)\n")
+        f.flush()
+
+        try:
+            monkeypatch.setenv("PYP_CONFIG_PATH", f.name)
+            result = run_pyp("DATES")
+            assert "\\d{4}" in result
+            assert "\\d{2}" in result
+        finally:
+            import os
+
+            os.unlink(f.name)
