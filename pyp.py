@@ -596,6 +596,9 @@ class PypTransform:
                 i += 1
             node.lineno = i  # type: ignore[attr-defined]
             node.end_lineno = i  # type: ignore[attr-defined]
+            # Clear column offsets to avoid invalid ranges when nodes span multiple lines
+            node.col_offset = 0  # type: ignore[attr-defined]
+            node.end_col_offset = 0  # type: ignore[attr-defined]
 
         return ast.fix_missing_locations(ret)
 
