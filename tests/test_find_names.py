@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import re
+import sys
 
 import pytest
 
@@ -165,6 +166,17 @@ def test_comprehensions():
     check_find_names("[x for x in xx if x > 0]", set(), {"xx"})
     check_find_names("{x for x in xx if x > 0}", set(), {"xx"})
     check_find_names("{x: x for x in xx if x > 0}", set(), {"xx"})
+
+
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="requires match statement")
+def test_match():
+    check_find_names("match 1:\n case y: y", {"y"}, set())
+    check_find_names("match 1:\n case int() as n: n", {"n"}, {"int"})
+    check_find_names("match 1:\n case n if n > 0: n", {"n"}, set())
+    check_find_names("match (1, 2):\n case [a, *rest]: (a, rest)", {"a", "rest"}, set())
+    check_find_names("match {'k': 1}:\n case {'k': v, **rest}: (v, rest)", {"v", "rest"}, set())
+    check_find_names("match (1, 2):\n case [1, _]: _", set(), {"_"})
+    check_find_names("match x:\n case [a]: a", {"a"}, {"x"})
 
 
 def test_args():
