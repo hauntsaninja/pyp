@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Drop support for Python 3.9. pyp now requires Python 3.10 or above.
+
 ## [v1.3.0]
 - Add support for Python 3.13
 - Turn missing config file into a warning instead of an error
