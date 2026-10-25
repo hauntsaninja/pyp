@@ -32,6 +32,8 @@ jobs:
           - {python: '3.13', tox: py313}
           - {python: '3.14', tox: py314}
           - {python: '3.14t', tox: py314t}
+          - {python: '3.15', tox: py315}
+          - {python: '3.15t', tox: py315t}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6

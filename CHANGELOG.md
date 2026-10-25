@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Drop support for Python 3.9. pyp now requires Python 3.10 or above.
+- Test on Python 3.15, including the free-threaded build.
 
 ## [v1.3.0]
 - Add support for Python 3.13
