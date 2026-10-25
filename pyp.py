@@ -18,20 +18,20 @@ __version__ = "1.3.0"
 
 
 def pypprint(*args, **kwargs):  # type: ignore
-    """Replacement for ``print`` that special-cases dicts and iterables.
+    """Replacement for ``print`` that special-cases mappings and iterables.
 
-    - Dictionaries are printed one line per key-value pair, with key and value colon-separated.
+    - Mappings are printed one line per key-value pair, with key and value colon-separated.
     - Iterables (excluding strings) are printed one line per item
     - Everything else is delegated to ``print``
 
     """
-    from typing import Iterable
+    from collections.abc import Iterable, Mapping
 
     if len(args) != 1:
         print(*args, **kwargs)
         return
     x = args[0]
-    if isinstance(x, dict):
+    if isinstance(x, Mapping):
         for k, v in x.items():
             print(f"{k}:", v, **kwargs)
     elif isinstance(x, Iterable) and not isinstance(x, str):
