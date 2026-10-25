@@ -621,7 +621,7 @@ def run_pyp(args: argparse.Namespace) -> None:
         print(ast.unparse(tree))
         return
     try:
-        exec(compile(tree, filename="<pyp>", mode="exec"), {})
+        exec(compile(tree, filename="<pyp>", mode="exec", dont_inherit=True), {})
     except Exception as e:
         # On error, reconstruct a traceback into the generated code
         # Also add some diagnostics for ModuleNotFoundError and NameError

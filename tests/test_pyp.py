@@ -146,6 +146,15 @@ def test_magic_variable_failures():
         run_pyp("pyp 'stdin; lines'")
 
 
+def test_annotation_semantics_match_generated_script():
+    code = """def f(value: int) -> int: pass
+print(f.__annotations__["value"] is int, f.__annotations__["return"] is int)"""
+    expected = "True True\n"
+    assert run_pyp([code]) == expected
+    script = run_pyp(["--explain", code])
+    assert subprocess.check_output([sys.executable, "-c", script], text=True) == expected
+
+
 def test_user_error():
     pattern = re.compile("Invalid input.*SyntaxError", re.DOTALL)
     with pytest.raises(pyp.PypError, match="Invalid input"):
