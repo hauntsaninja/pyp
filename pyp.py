@@ -189,6 +189,19 @@ class NameFinder(ast.NodeVisitor):
     visit_GeneratorExp = visit_comprehension_helper
     visit_DictComp = visit_comprehension_helper
 
+    # Match patterns bind names as plain strings, not as ast.Name nodes
+    def visit_MatchAs(self, node: Any) -> None:
+        self.generic_visit(node)
+        if node.name is not None:
+            self._scopes[-1].add(node.name)
+
+    visit_MatchStar = visit_MatchAs
+
+    def visit_MatchMapping(self, node: Any) -> None:
+        self.generic_visit(node)
+        if node.rest is not None:
+            self._scopes[-1].add(node.rest)
+
 
 def dfs_walk(node: ast.AST) -> Iterator[ast.AST]:
     """Helper to iterate over an AST depth-first."""
