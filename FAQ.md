@@ -131,5 +131,4 @@ Benchmark #1: seq 1 999999 | pyp 'sum(map(int, lines))'
 
 You should be able to use PyPy! Tests currently pass against PyPy (run `tox -e pypy3`).
 You can install pyp using PyPy with something like `pypy3 -m pip install pypyp`.
-Running `pyp sys.version` will tell you whether it worked. Note that pyp requires at least
-Python 3.9; this constraint naturally applies when using PyPy as well.
+Running `pyp sys.version` will tell you whether it worked.
