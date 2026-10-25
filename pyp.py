@@ -279,6 +279,8 @@ class PypConfig:
 
         top_level: tuple[Any, ...] = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
         top_level += (ast.Import, ast.ImportFrom, ast.Assign, ast.AnnAssign, ast.If, ast.Try)
+        if sys.version_info >= (3, 12):
+            top_level += (ast.TypeAlias,)
         for index, part in enumerate(self.parts):
             if not isinstance(part, top_level):
                 node_type = type(
