@@ -132,6 +132,18 @@ def test_examples():
     )
 
 
+@pytest.mark.skipif(sys.version_info < (3, 15), reason="requires Python 3.15 syntax")
+def test_lazy_import_and_unpacking_comprehension():
+    code = "lazy from math import isqrt\n[*pair for pair in [(isqrt(int(x)), x)]]"
+    data = "9\n16\n"
+    expected = "[3, '9']\n[4, '16']\n"
+    assert run_pyp([code], input=data) == expected
+    script = run_pyp(["--explain", code])
+    assert "lazy from math import isqrt" in script
+    output = subprocess.check_output([sys.executable, "-c", script], input=data, text=True)
+    assert output == expected
+
+
 def test_magic_variable_failures():
     with pytest.raises(pyp.PypError, match="Code doesn't generate any output"):
         run_pyp("pyp 'x = 1'")
