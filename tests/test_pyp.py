@@ -264,6 +264,15 @@ def test_pypprint_basic():
     assert run_pyp("pyp --define-pypprint lines", input="a\nb") == "a\nb\n"
 
 
+@pytest.mark.skipif(sys.version_info < (3, 15), reason="requires frozendict")
+def test_frozendict_output():
+    code = "frozendict(a=1, b=2)"
+    expected = "a: 1\nb: 2\n"
+    assert run_pyp([code]) == expected
+    script = run_pyp(["--explain", "--define-pypprint", code])
+    assert subprocess.check_output([sys.executable, "-c", script], text=True) == expected
+
+
 def test_get_valid_name():
     # output is already defined, so we shouldn't print 0
     assert run_pyp("pyp 'output = 0; 1'") == "1\n"
