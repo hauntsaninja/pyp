@@ -285,6 +285,12 @@ def test_pypprint_basic():
     assert run_pyp("pyp --define-pypprint lines", input="a\nb") == "a\nb\n"
 
 
+def test_pypprint_bytes():
+    # bytes are string-like and should be printed as a value, not one int per byte
+    assert run_pyp("pyp 'pypprint(b\"ab\")'") == "b'ab'\n"
+    assert run_pyp("pyp 'pypprint(bytearray(b\"ab\"))'") == "bytearray(b'ab')\n"
+
+
 @pytest.mark.skipif(sys.version_info < (3, 15), reason="requires frozendict")
 def test_frozendict_output():
     code = "frozendict(a=1, b=2)"
