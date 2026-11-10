@@ -34,7 +34,7 @@ def pypprint(*args, **kwargs):  # type: ignore
     if isinstance(x, Mapping):
         for k, v in x.items():
             print(f"{k}:", v, **kwargs)
-    elif isinstance(x, Iterable) and not isinstance(x, str):
+    elif isinstance(x, Iterable) and not isinstance(x, (str, bytes, bytearray)):
         for i in x:
             print(i, **kwargs)
     else:
